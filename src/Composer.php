@@ -30,7 +30,7 @@ class Composer
     /**
      * Segment Thai text into an array of words
      *
-     * @param string $text The Thai text to segment
+     * @param  string  $text  The Thai text to segment
      * @return array<string> Array of segmented words
      */
     public static function segment(string $text): array
@@ -41,8 +41,8 @@ class Composer
     /**
      * Segment Thai text and return as delimited string
      *
-     * @param string $text The Thai text to segment
-     * @param string $delimiter The delimiter to use between words (default: '|')
+     * @param  string  $text  The Thai text to segment
+     * @param  string  $delimiter  The delimiter to use between words (default: '|')
      * @return string Segmented text with delimiters
      */
     public static function segmentToString(string $text, string $delimiter = '|'): string
@@ -53,7 +53,7 @@ class Composer
     /**
      * Segment multiple texts in batch for better performance
      *
-     * @param array<string> $texts Array of texts to segment
+     * @param  array<string>  $texts  Array of texts to segment
      * @return array<int, array<string>> Array of segmentation results
      */
     public static function segmentBatch(array $texts): array
@@ -90,7 +90,7 @@ class Composer
     /**
      * Update segmenter configuration
      *
-     * @param array<string, mixed> $config Configuration options
+     * @param  array<string, mixed>  $config  Configuration options
      */
     public static function updateConfig(array $config): void
     {
@@ -126,9 +126,9 @@ class Composer
     /**
      * Create a new segmenter instance with custom configuration
      *
-     * @param DictionaryInterface|null $dictionary Custom dictionary instance
-     * @param AlgorithmInterface|null $algorithm Custom algorithm instance
-     * @param array<string, mixed> $config Configuration options
+     * @param  DictionaryInterface|null  $dictionary  Custom dictionary instance
+     * @param  AlgorithmInterface|null  $algorithm  Custom algorithm instance
+     * @param  array<string, mixed>  $config  Configuration options
      * @return ThaiSegmenter New segmenter instance
      */
     public static function create(
@@ -167,7 +167,7 @@ class Composer
     private static function getSegmenter(): ThaiSegmenter
     {
         if (self::$segmenter === null) {
-            self::$segmenter = new ThaiSegmenter();
+            self::$segmenter = new ThaiSegmenter;
         }
 
         return self::$segmenter;
