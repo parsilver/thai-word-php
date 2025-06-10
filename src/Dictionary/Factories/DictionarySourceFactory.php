@@ -122,14 +122,22 @@ class DictionarySourceFactory
             default => throw new InvalidArgumentException("Unknown parser type: {$parserType}")
         };
 
-        return new RemoteDictionarySource(
-            $url,
-            Psr18ClientDiscovery::find(),
-            Psr17FactoryDiscovery::findRequestFactory(),
-            $parser,
-            $timeout,
-            $headers
-        );
+        try {
+            return new RemoteDictionarySource(
+                $url,
+                Psr18ClientDiscovery::find(),
+                Psr17FactoryDiscovery::findRequestFactory(),
+                $parser,
+                $timeout,
+                $headers
+            );
+        } catch (\Throwable $e) {
+            throw new InvalidArgumentException(
+                "Failed to create remote dictionary source: {$e->getMessage()}",
+                0,
+                $e
+            );
+        }
     }
 
     /**
