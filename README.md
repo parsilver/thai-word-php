@@ -14,6 +14,11 @@ A library for Thai word segmentation in PHP.
 - Batch processing
 - Custom configuration with caching, memory limit, and batch size
 
+## Requirements
+
+- PHP 8.4+
+- Composer
+
 ## Installation
 
 You can install the package via composer:
