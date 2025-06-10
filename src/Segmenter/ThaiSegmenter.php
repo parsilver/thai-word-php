@@ -423,17 +423,52 @@ class ThaiSegmenter implements SegmenterInterface
      */
     private function loadDefaultDictionary(): void
     {
-        // Load LibreOffice Thai dictionary by default for better coverage
+        // First, check if local dictionary file exists
+        $localDictionaryPath = $this->getLocalDictionaryPath();
+        
+        if (file_exists($localDictionaryPath) && is_readable($localDictionaryPath)) {
+            try {
+                // Load from local file if it exists and is readable
+                $this->dictionary->load($localDictionaryPath);
+                return;
+            } catch (\Exception $e) {
+                // If local file loading fails, continue to remote loading
+            }
+        }
+
+        // Fallback to remote LibreOffice Thai dictionary
         if ($this->dictionary instanceof HashDictionary && method_exists($this->dictionary, 'loadLibreOfficeThaiDictionary')) {
             try {
                 $this->dictionary->loadLibreOfficeThaiDictionary('main');
             } catch (\Exception $e) {
-                // Fallback to basic dictionary if LibreOffice fails
+                // Fallback to basic dictionary if remote LibreOffice fails
                 $this->loadBasicDictionary();
             }
         } else {
             $this->loadBasicDictionary();
         }
+    }
+
+    /**
+     * Get the path to the local dictionary file
+     */
+    private function getLocalDictionaryPath(): string
+    {
+        // Try multiple possible locations for the dictionary file
+        $possiblePaths = [
+            __DIR__ . '/../../resources/dictionaries/libreoffice-combined.txt',
+            __DIR__ . '/../../../resources/dictionaries/libreoffice-combined.txt',
+            dirname(__DIR__, 2) . '/resources/dictionaries/libreoffice-combined.txt',
+        ];
+
+        foreach ($possiblePaths as $path) {
+            if (file_exists($path)) {
+                return $path;
+            }
+        }
+
+        // Return the most likely path as default
+        return dirname(__DIR__, 2) . '/resources/dictionaries/libreoffice-combined.txt';
     }
 
     /**
