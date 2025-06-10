@@ -16,12 +16,18 @@
         }
     ],
     "require": {
-        "php": "^8.4"
+        "php": "^8.4",
+        "symfony/console": "^7.0"
     },
     "require-dev": {
         "pestphp/pest": "^3.0",
         "laravel/pint": "^1.0",
-        "spatie/ray": "^1.28"
+        "spatie/ray": "^1.28",
+        "psr/http-client": "^1.0",
+        "psr/http-factory": "^1.0",
+        "guzzlehttp/guzzle": "^7.0",
+        "php-http/discovery": "^1.19",
+        "mockery/mockery": "^1.6"
     },
     "autoload": {
         "psr-4": {
@@ -33,15 +39,20 @@
             "Farzai\\ThaiWord\\Tests\\": "tests"
         }
     },
+    "bin": [
+        "bin/thai-word"
+    ],
     "scripts": {
         "test": "vendor/bin/pest",
-            "test-coverage": "vendor/bin/pest --coverage",
-        "format": "vendor/bin/pint"
+        "test-coverage": "vendor/bin/pest --coverage",
+        "format": "vendor/bin/pint",
+        "dict:prepare": "bin/thai-word dict:prepare --combined --force"
     },
     "config": {
         "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true,
+            "php-http/discovery": true,
             "phpstan/extension-installer": true
         }
     },

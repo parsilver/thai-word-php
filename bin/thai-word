@@ -1,0 +1,111 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Thai Word Segmentation CLI Entry Point
+ * 
+ * This script serves as the main entry point for the Thai Word Segmentation
+ * command-line interface using Symfony Console.
+ */
+
+/**
+ * Bootstrap the application autoloader
+ * 
+ * @return void
+ * @throws RuntimeException If autoloader cannot be found
+ */
+function bootstrapAutoloader(): void
+{
+    $autoloadPaths = [
+        __DIR__ . '/../vendor/autoload.php',  // Development installation
+        __DIR__ . '/../autoload.php',         // Dependency installation
+    ];
+    
+    foreach ($autoloadPaths as $path) {
+        if (file_exists($path)) {
+            require_once $path;
+            return;
+        }
+    }
+    
+    throw new RuntimeException(
+        "Composer autoload file not found.\nPlease run 'composer install' first."
+    );
+}
+
+/**
+ * Validate runtime environment requirements
+ * 
+ * @return void
+ * @throws RuntimeException If environment requirements are not met
+ */
+function validateEnvironment(): void
+{
+    // Ensure we're running in CLI mode
+    if (php_sapi_name() !== 'cli') {
+        throw new RuntimeException('This script must be run from the command line.');
+    }
+    
+    // Check PHP version requirement (updated to match project standards)
+    if (version_compare(PHP_VERSION, '8.2', '<')) {
+        throw new RuntimeException(
+            sprintf(
+                "This application requires PHP 8.2 or higher.\nCurrent PHP version: %s",
+                PHP_VERSION
+            )
+        );
+    }
+}
+
+/**
+ * Handle application errors with appropriate verbosity
+ * 
+ * @param Throwable $exception The exception to handle
+ * @param array<string> $argv Command line arguments
+ * @return void
+ */
+function handleApplicationError(Throwable $exception, array $argv): void
+{
+    echo "Fatal Error: " . $exception->getMessage() . "\n";
+    
+    // Show stack trace if verbose mode is enabled
+    $verboseFlags = ['--verbose', '-v', '-vv', '-vvv'];
+    $isVerbose = !empty(array_intersect($verboseFlags, $argv));
+    
+    if ($isVerbose) {
+        echo "\nStack trace:\n" . $exception->getTraceAsString() . "\n";
+    }
+}
+
+/**
+ * Main application entry point
+ * 
+ * @return int Exit code
+ */
+function main(): int
+{
+    try {
+        // Bootstrap application dependencies
+        bootstrapAutoloader();
+        
+        // Validate runtime environment
+        validateEnvironment();
+        
+        // Import required classes after autoloader is available
+        $applicationClass = \Farzai\ThaiWord\Console\Application::class;
+        
+        // Create and run the console application
+        $application = new $applicationClass();
+        return $application->run();
+        
+    } catch (Throwable $exception) {
+        global $argv;
+        handleApplicationError($exception, $argv ?? []);
+        return 1;
+    }
+}
+
+// Execute the application
+exit(main());
