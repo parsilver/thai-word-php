@@ -16,10 +16,10 @@
         }
     ],
     "require": {
-        "php": "^8.4",
-        "symfony/console": "^7.0"
+        "php": "^8.4"
     },
     "require-dev": {
+        "symfony/console": "^7.0",
         "pestphp/pest": "^3.0",
         "laravel/pint": "^1.0",
         "spatie/ray": "^1.28",

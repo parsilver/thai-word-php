@@ -4,6 +4,15 @@
 [![Tests](https://img.shields.io/github/actions/workflow/status/parsilver/thai-word-php/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/parsilver/thai-word-php/actions/workflows/run-tests.yml)
 [![Total Downloads](https://img.shields.io/packagist/dt/farzai/thai-word.svg?style=flat-square)](https://packagist.org/packages/farzai/thai-word)
 
+A library for Thai word segmentation in PHP.
+
+## Features
+
+- Thai word segmentation
+- Dictionary loading from local file, remote file, and remote URL
+- Performance optimizations
+- Batch processing
+- Custom configuration with caching, memory limit, and batch size
 
 ## Installation
 
@@ -15,6 +24,29 @@ composer require farzai/thai-word
 
 ## Basic Usage
 
+### Using the Facade (Recommended)
+
+```php
+use Farzai\ThaiWord\Composer;
+
+// Simple text segmentation
+$words = Composer::segment('สวัสดีครับผมชื่อสมชาย');
+// Result: ['สวัสดี', 'ครับ', 'ผม', 'ชื่อ', 'สมชาย']
+
+// Segment with custom delimiter
+$text = Composer::segmentToString('สวัสดีครับผมชื่อสมชาย', ' ');
+// Result: 'สวัสดี ครับ ผม ชื่อ สมชาย'
+
+// Batch processing for multiple texts
+$results = Composer::segmentBatch(['สวัสดีครับ', 'ขอบคุณค่ะ']);
+// Result: [['สวัสดี', 'ครับ'], ['ขอบคุณ', 'ค่ะ']]
+
+// Get performance statistics
+$stats = Composer::getStats();
+```
+
+### Using ThaiSegmenter Directly
+
 ```php
 use Farzai\ThaiWord\Segmenter\ThaiSegmenter;
 
@@ -23,6 +55,7 @@ $words = $segmenter->segment('สวัสดีครับผมชื่อ�
 
 // Result: ['สวัสดี', 'ครับ', 'ผม', 'ชื่อ', 'สมชาย']
 ```
+
 
 ## How It Works
 
@@ -34,9 +67,9 @@ This library segments Thai text into words through a highly optimized process. H
 - The library validates UTF-8 encoding and handles empty strings
 
 ### Step 2: Dictionary Loading (Automatic)
-The library automatically loads Thai words using several sources:
+The library automatically loads Thai words using several sources with intelligent fallback:
 
-- **LibreOffice Thai Dictionary**: Downloads from official LibreOffice repository
+- **LibreOffice Thai Dictionary**: Downloads from official LibreOffice repository (primary source)
 - **Local Dictionary Files**: Falls back to local dictionary files if available
 - **Basic Dictionary**: Uses built-in common Thai words as last resort
 
@@ -99,27 +132,50 @@ $result = $segmenter->segment('ผมใช้ Computer ทำงาน');
 - **Automatic optimization** based on text characteristics  
 - **Built-in statistics** for performance monitoring
 
-### Real Usage Example
+### Real Usage Examples
+
+**Using the Facade (Simple & Clean)**
+
+```php
+use Farzai\ThaiWord\Composer;
+
+// Basic segmentation
+$words = Composer::segment('สวัสดีครับผมชื่อสมชาย');
+// Result: ['สวัสดี', 'ครับ', 'ผม', 'ชื่อ', 'สมชาย']
+
+// Get performance statistics
+$stats = Composer::getStats();
+echo "Processing time: {$stats['avg_processing_time']}ms";
+
+// Add custom words
+Composer::getDictionary()->add('คำใหม่');
+
+// Batch processing for multiple texts
+$results = Composer::segmentBatch(['ข้อความ1', 'ข้อความ2']);
+
+// Custom configuration
+Composer::updateConfig([
+    'enable_caching' => true,
+    'memory_limit_mb' => 200
+]);
+```
+
+**Using ThaiSegmenter Directly (Advanced Control)**
 
 ```php
 use Farzai\ThaiWord\Segmenter\ThaiSegmenter;
 
-// Create segmenter (automatically loads dictionary)
-$segmenter = new ThaiSegmenter();
+// Create segmenter with custom configuration
+$segmenter = new ThaiSegmenter(null, null, [
+    'enable_caching' => true,
+    'batch_size' => 500
+]);
 
-// Basic segmentation
-$words = $segmenter->segment('สวัสดีครับผมชื่อสมชาย');
-// Result: ['สวัสดี', 'ครับ', 'ผม', 'ชื่อ', 'สมชาย']
+// Or use the facade to create custom instances
+$customSegmenter = Composer::create(null, null, ['memory_limit_mb' => 150]);
 
-// Get performance statistics
-$stats = $segmenter->getStats();
-echo "Processing time: {$stats['avg_processing_time']}ms";
-
-// Add custom words
-$segmenter->getDictionary()->add('คำใหม่');
-
-// Batch processing for multiple texts
-$results = $segmenter->segmentBatch(['ข้อความ1', 'ข้อความ2']);
+// Set custom segmenter for facade
+Composer::setSegmenter($customSegmenter);
 ```
 
 This architecture ensures both accuracy and performance while remaining simple to use.
@@ -146,6 +202,10 @@ Please review [our security policy](../../security/policy) on how to report secu
 
 - [parsilver](https://github.com/parsilver)
 - [All Contributors](../../contributors)
+
+### Data Sources
+
+- [LibreOffice Thai Dictionary](https://cgit.freedesktop.org/libreoffice/dictionaries/tree/th_TH) - Primary Thai word dictionary source
 
 ## License
 
