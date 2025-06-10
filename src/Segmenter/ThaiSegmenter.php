@@ -425,11 +425,12 @@ class ThaiSegmenter implements SegmenterInterface
     {
         // First, check if local dictionary file exists
         $localDictionaryPath = $this->getLocalDictionaryPath();
-        
+
         if (file_exists($localDictionaryPath) && is_readable($localDictionaryPath)) {
             try {
                 // Load from local file if it exists and is readable
                 $this->dictionary->load($localDictionaryPath);
+
                 return;
             } catch (\Exception $e) {
                 // If local file loading fails, continue to remote loading
@@ -456,9 +457,9 @@ class ThaiSegmenter implements SegmenterInterface
     {
         // Try multiple possible locations for the dictionary file
         $possiblePaths = [
-            __DIR__ . '/../../resources/dictionaries/libreoffice-combined.txt',
-            __DIR__ . '/../../../resources/dictionaries/libreoffice-combined.txt',
-            dirname(__DIR__, 2) . '/resources/dictionaries/libreoffice-combined.txt',
+            __DIR__.'/../../resources/dictionaries/libreoffice-combined.txt',
+            __DIR__.'/../../../resources/dictionaries/libreoffice-combined.txt',
+            dirname(__DIR__, 2).'/resources/dictionaries/libreoffice-combined.txt',
         ];
 
         foreach ($possiblePaths as $path) {
@@ -468,7 +469,7 @@ class ThaiSegmenter implements SegmenterInterface
         }
 
         // Return the most likely path as default
-        return dirname(__DIR__, 2) . '/resources/dictionaries/libreoffice-combined.txt';
+        return dirname(__DIR__, 2).'/resources/dictionaries/libreoffice-combined.txt';
     }
 
     /**

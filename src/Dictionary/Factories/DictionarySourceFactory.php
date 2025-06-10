@@ -7,6 +7,8 @@ namespace Farzai\ThaiWord\Dictionary\Factories;
 use Farzai\ThaiWord\Contracts\DictionarySourceInterface;
 use Farzai\ThaiWord\Dictionary\Config\DictionaryUrls;
 use Farzai\ThaiWord\Dictionary\Parsers\LibreOfficeParser;
+use Farzai\ThaiWord\Dictionary\Parsers\PlainTextParser;
+use Farzai\ThaiWord\Dictionary\Sources\FileDictionarySource;
 use Farzai\ThaiWord\Dictionary\Sources\RemoteDictionarySource;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
@@ -74,6 +76,29 @@ class DictionarySourceFactory
     }
 
     /**
+     * Create a file dictionary source from local file
+     *
+     * @param  string  $filePath  Dictionary file path
+     * @param  string  $parserType  Parser type ('plain', 'main', 'typos_translit', 'typos_common')
+     *
+     * @throws InvalidArgumentException If parser type is unknown
+     */
+    public static function createFromFile(
+        string $filePath,
+        string $parserType = 'plain'
+    ): DictionarySourceInterface {
+        $parser = match ($parserType) {
+            'plain' => new PlainTextParser,
+            LibreOfficeParser::TYPE_MAIN => new LibreOfficeParser(LibreOfficeParser::TYPE_MAIN),
+            LibreOfficeParser::TYPE_TYPOS_TRANSLIT => new LibreOfficeParser(LibreOfficeParser::TYPE_TYPOS_TRANSLIT),
+            LibreOfficeParser::TYPE_TYPOS_COMMON => new LibreOfficeParser(LibreOfficeParser::TYPE_TYPOS_COMMON),
+            default => throw new InvalidArgumentException("Unknown parser type: {$parserType}")
+        };
+
+        return new FileDictionarySource($filePath, $parser);
+    }
+
+    /**
      * Create a remote dictionary source from URL
      *
      * @param  string  $url  Dictionary URL
@@ -90,6 +115,7 @@ class DictionarySourceFactory
         array $headers = []
     ): DictionarySourceInterface {
         $parser = match ($parserType) {
+            'plain' => new PlainTextParser,
             LibreOfficeParser::TYPE_MAIN => new LibreOfficeParser(LibreOfficeParser::TYPE_MAIN),
             LibreOfficeParser::TYPE_TYPOS_TRANSLIT => new LibreOfficeParser(LibreOfficeParser::TYPE_TYPOS_TRANSLIT),
             LibreOfficeParser::TYPE_TYPOS_COMMON => new LibreOfficeParser(LibreOfficeParser::TYPE_TYPOS_COMMON),
@@ -125,7 +151,7 @@ class DictionarySourceFactory
     /**
      * Generic create method for dictionary sources
      *
-     * @param  string  $type  Source type ('url', 'libreoffice_main', 'libreoffice_typos_translit', 'libreoffice_typos_common')
+     * @param  string  $type  Source type ('file', 'url', 'libreoffice_main', 'libreoffice_typos_translit', 'libreoffice_typos_common')
      * @param  string  $source  Source path/URL (ignored for libreoffice types)
      * @param  array<string, mixed>  $options  Additional options
      *
@@ -135,10 +161,10 @@ class DictionarySourceFactory
     {
         $timeout = $options['timeout'] ?? 30;
         $headers = $options['headers'] ?? [];
-        $parserType = $options['parser_type'] ?? LibreOfficeParser::TYPE_MAIN;
 
         return match ($type) {
-            'url' => self::createFromUrl($source, $parserType, $timeout, $headers),
+            'file' => self::createFromFile($source, $options['parser_type'] ?? 'plain'),
+            'url' => self::createFromUrl($source, $options['parser_type'] ?? LibreOfficeParser::TYPE_MAIN, $timeout, $headers),
             'libreoffice_main' => self::createLibreOfficeThaiDictionary($timeout, $headers),
             'libreoffice_typos_translit' => self::createLibreOfficeTyposTranslitDictionary($timeout, $headers),
             'libreoffice_typos_common' => self::createLibreOfficeTyposCommonDictionary($timeout, $headers),

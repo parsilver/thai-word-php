@@ -50,29 +50,18 @@ class DictionaryLoaderService
      * Load words from a local file.
      *
      * @param  string  $filePath  Path to the dictionary file
+     * @param  string  $parserType  Parser type for processing the content
      * @return array<int, string> Array of words
      *
      * @throws DictionaryException If file cannot be read
      */
-    public function loadFromFile(string $filePath): array
+    public function loadFromFile(string $filePath, string $parserType = 'plain'): array
     {
-        if (! file_exists($filePath) || ! is_readable($filePath)) {
-            throw new DictionaryException(
-                "Dictionary file not found or not readable: {$filePath}"
-            );
-        }
+        $source = $this->sourceFactory->create('file', $filePath, [
+            'parser_type' => $parserType,
+        ]);
 
-        $content = file_get_contents($filePath);
-        if ($content === false) {
-            throw new DictionaryException(
-                "Failed to read dictionary file: {$filePath}"
-            );
-        }
-
-        $lines = explode("\n", $content);
-        $words = array_map('trim', $lines);
-
-        return array_filter($words, static fn ($word) => $word !== '');
+        return $this->loadFromDictionarySource($source);
     }
 
     /**
@@ -124,16 +113,17 @@ class DictionaryLoaderService
      *
      * @param  string  $source  Source path or URL
      * @param  int  $timeout  Request timeout for URLs
+     * @param  string  $parserType  Parser type for processing the content
      * @return array<int, string> Array of words
      *
      * @throws DictionaryException If source cannot be loaded
      */
-    public function load(string $source, int $timeout = 30): array
+    public function load(string $source, int $timeout = 30, string $parserType = 'plain'): array
     {
         if ($this->isUrl($source)) {
-            return $this->loadFromUrl($source, $timeout);
+            return $this->loadFromUrl($source, $timeout, $parserType);
         }
 
-        return $this->loadFromFile($source);
+        return $this->loadFromFile($source, $parserType);
     }
 }
