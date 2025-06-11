@@ -8,11 +8,13 @@ A library for Thai word segmentation in PHP.
 
 ## Features
 
-- Thai word segmentation
-- Dictionary loading from local file, remote file, and remote URL
-- Performance optimizations
-- Batch processing
-- Custom configuration with caching, memory limit, and batch size
+- **Thai word segmentation** with high accuracy
+- **Word suggestions** for typos and misspellings
+- **Dictionary loading** from local file, remote file, and remote URL
+- **Performance optimizations** with caching and memory management
+- **Batch processing** for large text volumes
+- **Custom configuration** with caching, memory limit, and batch size
+- **Mixed content support** (Thai, English, numbers, punctuation)
 
 ## Requirements
 
@@ -46,6 +48,27 @@ $text = Composer::segmentToString('สวัสดีครับผมชื่
 $results = Composer::segmentBatch(['สวัสดีครับ', 'ขอบคุณค่ะ']);
 // Result: [['สวัสดี', 'ครับ'], ['ขอบคุณ', 'ค่ะ']]
 
+// Enable word suggestions via facade
+Composer::enableSuggestions(['threshold' => 0.7]);
+
+// Get suggestions for misspelled words
+$suggestions = Composer::suggest('สวัสด');
+// Result: [
+//     ['word' => 'สวัสดี', 'score' => 0.833],
+//     ['word' => 'สวัสดิ์', 'score' => 0.714],
+//     ['word' => 'สวัสติ', 'score' => 0.667]
+// ]
+
+// Segment with automatic suggestions
+$result = Composer::segmentWithSuggestions('สวัสดีครบ');
+// Result: [
+//     ['word' => 'สวัสดี'],
+//     ['word' => 'ครบ', 'suggestions' => [
+//         ['word' => 'ครับ', 'score' => 0.75],
+//         ['word' => 'กรบ', 'score' => 0.667]
+//     ]]
+// ]
+
 // Get performance statistics
 $stats = Composer::getStats();
 ```
@@ -61,10 +84,43 @@ $words = $segmenter->segment('สวัสดีครับผมชื่อ�
 // Result: ['สวัสดี', 'ครับ', 'ผม', 'ชื่อ', 'สมชาย']
 ```
 
+### Word Suggestions for Typos
+
+```php
+use Farzai\ThaiWord\Segmenter\ThaiSegmenter;
+
+$segmenter = new ThaiSegmenter();
+
+// Enable word suggestions
+$segmenter->enableSuggestions([
+    'threshold' => 0.6,        // Minimum similarity score (0.0-1.0)
+    'max_suggestions' => 5     // Maximum suggestions per word
+]);
+
+// Get suggestions for a misspelled word
+$suggestions = $segmenter->suggest('สวัสด'); // Missing last character
+// Result: [
+//     ['word' => 'สวัสดี', 'score' => 0.833],
+//     ['word' => 'สวัสดิ์', 'score' => 0.714],
+//     ['word' => 'สวัสติ', 'score' => 0.667]
+// ]
+
+// Segment text with automatic suggestions for unrecognized words
+$result = $segmenter->segmentWithSuggestions('สวัสดีครบ'); // 'ครบ' might be typo for 'ครับ'
+// Result: [
+//     ['word' => 'สวัสดี'],
+//     ['word' => 'ครบ', 'suggestions' => [
+//         ['word' => 'ครับ', 'score' => 0.75],
+//         ['word' => 'กรบ', 'score' => 0.667],
+//         ['word' => 'ครม', 'score' => 0.667]
+//     ]]
+// ]
+```
+
 
 ## How It Works
 
-This library segments Thai text into words through a highly optimized process. Here's how it works step by step:
+This library segments Thai text into words and provides intelligent word suggestions through a highly optimized process. Here's how it works step by step:
 
 ### Step 1: Text Input & Validation
 - You provide Thai text as a string to the `ThaiSegmenter`
@@ -102,7 +158,33 @@ Position 15: Check สมชาย (5 chars) → Found in dictionary ✓
 Output: ['สวัสดี', 'ครับ', 'ผม', 'ชื่อ', 'สมชาย']
 ```
 
-### Step 5: Performance Optimizations
+### Step 5: Word Suggestion System (Optional)
+
+When enabled, the library can suggest corrections for typos using advanced similarity algorithms:
+
+**Levenshtein Distance Algorithm**:
+```
+Input: สวัสด (missing last character)
+       ↓
+1. Filter dictionary words by length similarity (±3 characters)
+2. Calculate Unicode-aware Levenshtein distance for each candidate
+3. Convert distance to similarity score (0.0 to 1.0)
+4. Filter by threshold (default 0.6) and sort by score
+       ↓
+Output: [
+    ['word' => 'สวัสดี', 'score' => 0.833],  // 1 character difference
+    ['word' => 'สวัสดิ์', 'score' => 0.714], // 2 character difference
+    ['word' => 'สวัสติ', 'score' => 0.667]  // 2 character difference
+]
+```
+
+**Smart Suggestion Integration**:
+- Automatically suggests corrections for single-character segments (likely unrecognized)
+- Configurable similarity thresholds for accuracy control
+- Performance-optimized with caching and length-based filtering
+- Unicode-aware for proper Thai character handling
+
+### Step 6: Performance Optimizations
 
 The library includes several optimizations:
 
@@ -110,8 +192,9 @@ The library includes several optimizations:
 - **Batch Processing**: Large texts are processed in chunks to manage memory
 - **Memory Management**: Automatic garbage collection and memory optimization
 - **Adaptive Processing**: Different strategies for short, medium, and long texts
+- **Suggestion Caching**: Distance calculations cached for repeated similarity checks
 
-### Step 6: Mixed Content Handling
+### Step 7: Mixed Content Handling
 
 ```php
 $segmenter = new ThaiSegmenter();
@@ -125,15 +208,17 @@ $result = $segmenter->segment('ผมใช้ Computer ทำงาน');
 
 ### Key Components
 
-1. **ThaiSegmenter**: Main orchestrator with performance monitoring
+1. **ThaiSegmenter**: Main orchestrator with performance monitoring and suggestion integration
 2. **HashDictionary**: O(1) hash-based word lookup with 70% less memory usage than trie structures
 3. **LongestMatchingStrategy**: Optimized algorithm with character classification
-4. **DictionaryLoaderService**: Handles loading from files, URLs, and remote sources
+4. **LevenshteinSuggestionStrategy**: Unicode-aware word suggestion algorithm with caching
+5. **DictionaryLoaderService**: Handles loading from files, URLs, and remote sources
 
 ### Performance Features
 
 - **3-5x faster** processing speed with optimized algorithms
 - **50% lower memory** usage with hash-based dictionary
+- **Intelligent suggestions** with configurable accuracy thresholds
 - **Automatic optimization** based on text characteristics  
 - **Built-in statistics** for performance monitoring
 
@@ -184,6 +269,99 @@ Composer::setSegmenter($customSegmenter);
 ```
 
 This architecture ensures both accuracy and performance while remaining simple to use.
+
+## Advanced Usage
+
+### Custom Suggestion Strategies
+
+```php
+use Farzai\ThaiWord\Segmenter\ThaiSegmenter;
+use Farzai\ThaiWord\Suggestions\Strategies\LevenshteinSuggestionStrategy;
+
+// Create custom suggestion strategy
+$suggestionStrategy = new LevenshteinSuggestionStrategy;
+$suggestionStrategy->setThreshold(0.8)              // Higher accuracy
+                   ->setMaxWordLengthDiff(2);       // Stricter length filtering
+
+// Initialize segmenter with custom strategy
+$segmenter = new ThaiSegmenter(null, null, $suggestionStrategy);
+
+// Or set strategy later
+$segmenter->setSuggestionStrategy($suggestionStrategy);
+```
+
+### Performance Monitoring with Suggestions
+
+```php
+$segmenter = new ThaiSegmenter();
+$segmenter->enableSuggestions();
+
+// Process text
+$result = $segmenter->segmentWithSuggestions('สวัสดีครบผมชื่อโจน');
+
+// Get detailed statistics
+$stats = $segmenter->getStats();
+echo "Cache hit ratio: " . ($stats['cache_hit_ratio'] * 100) . "%\n";
+
+// Get suggestion-specific statistics
+$suggestionStrategy = $segmenter->getSuggestionStrategy();
+if ($suggestionStrategy instanceof LevenshteinSuggestionStrategy) {
+    $cacheStats = $suggestionStrategy->getCacheStats();
+    echo "Suggestion cache size: " . $cacheStats['cache_size'] . "\n";
+    echo "Memory usage: " . $cacheStats['memory_usage_mb'] . "MB\n";
+}
+```
+
+### Batch Processing with Suggestions
+
+```php
+$texts = [
+    'สวัสดีครบ',      // Contains typo
+    'ขอบคนครับ',      // Contains typo  
+    'ผมชื่อโจน'       // Might need suggestions
+];
+
+$segmenter = new ThaiSegmenter();
+$segmenter->enableSuggestions(['threshold' => 0.7]);
+
+foreach ($texts as $text) {
+    $result = $segmenter->segmentWithSuggestions($text);
+    
+    foreach ($result as $item) {
+        if (isset($item['suggestions'])) {
+            echo "'{$item['word']}' → Suggested: '{$item['suggestions'][0]['word']}'\n";
+        }
+    }
+}
+
+// Example output:
+// 'ครบ' → Suggested: 'ครับ'
+// 'คน' → Suggested: 'คุณ'
+// 'โจน' → Suggested: 'โจ้'
+```
+
+### Configuration Options
+
+```php
+$segmenter = new ThaiSegmenter();
+
+// Enable suggestions with custom configuration
+$segmenter->enableSuggestions([
+    'threshold' => 0.75,        // Minimum similarity score (0.0-1.0)
+    'max_suggestions' => 3      // Maximum suggestions per word
+]);
+
+// Update segmenter configuration
+$segmenter->updateConfig([
+    'enable_caching' => true,
+    'memory_limit_mb' => 150,
+    'suggestion_threshold' => 0.8,
+    'max_suggestions' => 5
+]);
+
+// Disable suggestions when not needed
+$segmenter->disableSuggestions();
+```
 
 ## Testing
 
