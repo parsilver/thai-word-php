@@ -8,8 +8,10 @@ use Farzai\ThaiWord\Algorithms\Strategies\LongestMatchingStrategy;
 use Farzai\ThaiWord\Contracts\AlgorithmInterface;
 use Farzai\ThaiWord\Contracts\DictionaryInterface;
 use Farzai\ThaiWord\Contracts\SegmenterInterface;
+use Farzai\ThaiWord\Contracts\SuggestionInterface;
 use Farzai\ThaiWord\Dictionary\HashDictionary;
 use Farzai\ThaiWord\Exceptions\SegmentationException;
+use Farzai\ThaiWord\Suggestions\Strategies\LevenshteinSuggestionStrategy;
 
 /**
  * Optimized Thai Segmenter with enhanced performance features
@@ -31,6 +33,8 @@ class ThaiSegmenter implements SegmenterInterface
     private DictionaryInterface $dictionary;
 
     private AlgorithmInterface $algorithm;
+
+    private ?SuggestionInterface $suggestionStrategy = null;
 
     /**
      * Performance statistics
@@ -56,6 +60,9 @@ class ThaiSegmenter implements SegmenterInterface
         'batch_size' => 1000,
         'memory_limit_mb' => 100,
         'auto_optimize' => true,
+        'enable_suggestions' => false,
+        'suggestion_threshold' => 0.6,
+        'max_suggestions' => 5,
     ];
 
     /**
@@ -73,14 +80,22 @@ class ThaiSegmenter implements SegmenterInterface
     public function __construct(
         ?DictionaryInterface $dictionary = null,
         ?AlgorithmInterface $algorithm = null,
+        ?SuggestionInterface $suggestionStrategy = null,
         array $config = []
     ) {
         // Use optimized components by default
         $this->dictionary = $dictionary ?? new HashDictionary;
         $this->algorithm = $algorithm ?? new LongestMatchingStrategy;
+        $this->suggestionStrategy = $suggestionStrategy;
 
         // Merge configuration
         $this->config = array_merge($this->config, $config);
+
+        // Initialize suggestion strategy if enabled but not provided
+        if ($this->config['enable_suggestions'] && $this->suggestionStrategy === null) {
+            $this->suggestionStrategy = new LevenshteinSuggestionStrategy;
+            $this->suggestionStrategy->setThreshold($this->config['suggestion_threshold']);
+        }
 
         // Load default dictionary if none provided
         if ($dictionary === null) {
@@ -266,6 +281,128 @@ class ThaiSegmenter implements SegmenterInterface
     public function getAlgorithm(): AlgorithmInterface
     {
         return $this->algorithm;
+    }
+
+    /**
+     * Get suggestion strategy instance
+     */
+    public function getSuggestionStrategy(): ?SuggestionInterface
+    {
+        return $this->suggestionStrategy;
+    }
+
+    /**
+     * Set suggestion strategy
+     */
+    public function setSuggestionStrategy(?SuggestionInterface $suggestionStrategy): void
+    {
+        $this->suggestionStrategy = $suggestionStrategy;
+
+        // Update configuration
+        $this->config['enable_suggestions'] = $suggestionStrategy !== null;
+
+        // Only configure threshold if strategy is set and uses default threshold
+        if ($suggestionStrategy !== null && $suggestionStrategy->getThreshold() === 0.6) {
+            $suggestionStrategy->setThreshold($this->config['suggestion_threshold']);
+        }
+    }
+
+    /**
+     * Find suggestions for potentially incorrect words
+     *
+     * @param  string  $word  The word to find suggestions for
+     * @param  int  $maxSuggestions  Maximum number of suggestions to return
+     * @return array<int, array{word: string, score: float}> Array of suggestions with scores
+     *
+     * @throws SegmentationException If suggestions are not enabled or word is invalid
+     */
+    public function suggest(string $word, ?int $maxSuggestions = null): array
+    {
+        if ($this->suggestionStrategy === null) {
+            throw new SegmentationException(
+                'Suggestion feature is not enabled. Initialize with a suggestion strategy or enable suggestions in config.',
+                SegmentationException::ALGORITHM_PROCESSING_FAILED
+            );
+        }
+
+        $maxSuggestions = $maxSuggestions ?? $this->config['max_suggestions'];
+
+        return $this->suggestionStrategy->suggest($word, $this->dictionary, $maxSuggestions);
+    }
+
+    /**
+     * Segment text with suggestions for unrecognized words
+     *
+     * @param  string  $text  The text to segment
+     * @return array<int, array{word: string, suggestions?: array}> Segmented words with optional suggestions
+     *
+     * @throws SegmentationException If segmentation fails
+     */
+    public function segmentWithSuggestions(string $text): array
+    {
+        $segments = $this->segment($text);
+
+        if (! $this->config['enable_suggestions'] || $this->suggestionStrategy === null) {
+            // Return segments without suggestions if not enabled
+            return array_map(fn ($word) => ['word' => $word], $segments);
+        }
+
+        $result = [];
+
+        foreach ($segments as $segment) {
+            $item = ['word' => $segment];
+
+            // Check if the segment is a single character (likely unrecognized)
+            if (mb_strlen($segment, 'UTF-8') === 1 && ! $this->dictionary->contains($segment)) {
+                $suggestions = $this->suggestionStrategy->suggest(
+                    $segment,
+                    $this->dictionary,
+                    $this->config['max_suggestions']
+                );
+
+                if (! empty($suggestions)) {
+                    $item['suggestions'] = $suggestions;
+                }
+            }
+
+            $result[] = $item;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Enable suggestions with default or custom configuration
+     *
+     * @param  array  $config  Suggestion configuration options
+     */
+    public function enableSuggestions(array $config = []): self
+    {
+        $suggestionConfig = array_merge([
+            'threshold' => 0.6,
+            'max_suggestions' => 5,
+        ], $config);
+
+        if ($this->suggestionStrategy === null) {
+            $this->suggestionStrategy = new LevenshteinSuggestionStrategy;
+        }
+
+        $this->suggestionStrategy->setThreshold($suggestionConfig['threshold']);
+        $this->config['enable_suggestions'] = true;
+        $this->config['suggestion_threshold'] = $suggestionConfig['threshold'];
+        $this->config['max_suggestions'] = $suggestionConfig['max_suggestions'];
+
+        return $this;
+    }
+
+    /**
+     * Disable suggestions
+     */
+    public function disableSuggestions(): self
+    {
+        $this->config['enable_suggestions'] = false;
+
+        return $this;
     }
 
     /**

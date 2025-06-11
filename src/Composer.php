@@ -6,6 +6,7 @@ namespace Farzai\ThaiWord;
 
 use Farzai\ThaiWord\Contracts\AlgorithmInterface;
 use Farzai\ThaiWord\Contracts\DictionaryInterface;
+use Farzai\ThaiWord\Contracts\SuggestionInterface;
 use Farzai\ThaiWord\Segmenter\ThaiSegmenter;
 
 /**
@@ -18,6 +19,9 @@ use Farzai\ThaiWord\Segmenter\ThaiSegmenter;
  * - Composer::segment('สวัสดีครับ')
  * - Composer::segmentToString('สวัสดีครับ', ' ')
  * - Composer::segmentBatch(['สวัสดี', 'ขอบคุณ'])
+ * - Composer::suggest('สวัสด')
+ * - Composer::segmentWithSuggestions('สวัสดีครบ')
+ * - Composer::enableSuggestions(['threshold' => 0.7])
  * - Composer::getStats()
  */
 class Composer
@@ -124,19 +128,78 @@ class Composer
     }
 
     /**
+     * Find suggestions for potentially incorrect words
+     *
+     * @param  string  $word  The word to find suggestions for
+     * @param  int|null  $maxSuggestions  Maximum number of suggestions to return
+     * @return array<int, array{word: string, score: float}> Array of suggestions with scores
+     */
+    public static function suggest(string $word, ?int $maxSuggestions = null): array
+    {
+        return self::getSegmenter()->suggest($word, $maxSuggestions);
+    }
+
+    /**
+     * Segment text with suggestions for unrecognized words
+     *
+     * @param  string  $text  The text to segment
+     * @return array<int, array{word: string, suggestions?: array}> Segmented words with optional suggestions
+     */
+    public static function segmentWithSuggestions(string $text): array
+    {
+        return self::getSegmenter()->segmentWithSuggestions($text);
+    }
+
+    /**
+     * Enable suggestions with default or custom configuration
+     *
+     * @param  array  $config  Suggestion configuration options
+     */
+    public static function enableSuggestions(array $config = []): void
+    {
+        self::getSegmenter()->enableSuggestions($config);
+    }
+
+    /**
+     * Disable suggestions
+     */
+    public static function disableSuggestions(): void
+    {
+        self::getSegmenter()->disableSuggestions();
+    }
+
+    /**
+     * Get suggestion strategy instance
+     */
+    public static function getSuggestionStrategy(): ?SuggestionInterface
+    {
+        return self::getSegmenter()->getSuggestionStrategy();
+    }
+
+    /**
+     * Set suggestion strategy
+     */
+    public static function setSuggestionStrategy(?SuggestionInterface $suggestionStrategy): void
+    {
+        self::getSegmenter()->setSuggestionStrategy($suggestionStrategy);
+    }
+
+    /**
      * Create a new segmenter instance with custom configuration
      *
      * @param  DictionaryInterface|null  $dictionary  Custom dictionary instance
      * @param  AlgorithmInterface|null  $algorithm  Custom algorithm instance
+     * @param  SuggestionInterface|null  $suggestionStrategy  Custom suggestion strategy instance
      * @param  array<string, mixed>  $config  Configuration options
      * @return ThaiSegmenter New segmenter instance
      */
     public static function create(
         ?DictionaryInterface $dictionary = null,
         ?AlgorithmInterface $algorithm = null,
+        ?SuggestionInterface $suggestionStrategy = null,
         array $config = []
     ): ThaiSegmenter {
-        return new ThaiSegmenter($dictionary, $algorithm, $config);
+        return new ThaiSegmenter($dictionary, $algorithm, $suggestionStrategy, $config);
     }
 
     /**
