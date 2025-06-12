@@ -49,7 +49,8 @@ $results = Composer::segmentBatch(['สวัสดีครับ', 'ขอบ�
 // Result: [['สวัสดี', 'ครับ'], ['ขอบคุณ', 'ค่ะ']]
 
 // Enable word suggestions via facade
-Composer::enableSuggestions(['threshold' => 0.7]);
+// Use threshold 0.4-0.5 for single characters, 0.6-0.7 for multi-character words
+Composer::enableSuggestions(['threshold' => 0.5]);
 
 // Get suggestions for misspelled words
 $suggestions = Composer::suggest('สวัสด');
@@ -59,14 +60,16 @@ $suggestions = Composer::suggest('สวัสด');
 //     ['word' => 'สวัสติ', 'score' => 0.667]
 // ]
 
-// Segment with automatic suggestions
-$result = Composer::segmentWithSuggestions('สวัสดีครบ');
+// Segment with automatic suggestions for single unrecognized characters
+$result = Composer::segmentWithSuggestions('โอเคอไร');
 // Result: [
-//     ['word' => 'สวัสดี'],
-//     ['word' => 'ครบ', 'suggestions' => [
-//         ['word' => 'ครับ', 'score' => 0.75],
-//         ['word' => 'กรบ', 'score' => 0.667]
-//     ]]
+//     ['word' => 'โอเค'],
+//     ['word' => 'อ', 'suggestions' => [
+//         ['word' => 'กอ', 'score' => 0.5],
+//         ['word' => 'ขอ', 'score' => 0.5],
+//         ['word' => 'คอ', 'score' => 0.5]
+//     ]],
+//     ['word' => 'ไร']
 // ]
 
 // Get performance statistics
@@ -93,7 +96,7 @@ $segmenter = new ThaiSegmenter();
 
 // Enable word suggestions
 $segmenter->enableSuggestions([
-    'threshold' => 0.6,        // Minimum similarity score (0.0-1.0)
+    'threshold' => 0.5,        // Minimum similarity score (0.0-1.0)
     'max_suggestions' => 5     // Maximum suggestions per word
 ]);
 
@@ -105,15 +108,17 @@ $suggestions = $segmenter->suggest('สวัสด'); // Missing last character
 //     ['word' => 'สวัสติ', 'score' => 0.667]
 // ]
 
-// Segment text with automatic suggestions for unrecognized words
-$result = $segmenter->segmentWithSuggestions('สวัสดีครบ'); // 'ครบ' might be typo for 'ครับ'
+// Segment text with automatic suggestions for single unrecognized characters
+$result = $segmenter->segmentWithSuggestions('ชื่ออไรนะ'); // 'อ' is unrecognized single character
 // Result: [
-//     ['word' => 'สวัสดี'],
-//     ['word' => 'ครบ', 'suggestions' => [
-//         ['word' => 'ครับ', 'score' => 0.75],
-//         ['word' => 'กรบ', 'score' => 0.667],
-//         ['word' => 'ครม', 'score' => 0.667]
-//     ]]
+//     ['word' => 'ชื่อ'],
+//     ['word' => 'อ', 'suggestions' => [
+//         ['word' => 'กอ', 'score' => 0.5],
+//         ['word' => 'ขอ', 'score' => 0.5],
+//         ['word' => 'คอ', 'score' => 0.5]
+//     ]],
+//     ['word' => 'ไร'],
+//     ['word' => 'นะ']
 // ]
 ```
 
@@ -179,9 +184,11 @@ Output: [
 ```
 
 **Smart Suggestion Integration**:
-- Automatically suggests corrections for single-character segments (likely unrecognized)
-- Configurable similarity thresholds for accuracy control
-- Performance-optimized with caching and length-based filtering
+- **Single-character only**: `segmentWithSuggestions()` only provides suggestions for single-character segments that are NOT in the dictionary
+- **Multi-character words**: Use `suggest()` method directly for multi-character word suggestions
+- **Threshold requirements**: Single-character similarities max out at 0.5, so use threshold ≤ 0.5 for best results
+- **Configurable similarity thresholds**: 0.4-0.5 for single characters, 0.6-0.7 for multi-character words
+- **Performance-optimized**: Caching and length-based filtering for large dictionaries
 - Unicode-aware for proper Thai character handling
 
 ### Step 6: Performance Optimizations
@@ -340,14 +347,39 @@ foreach ($texts as $text) {
 // 'โจน' → Suggested: 'โจ้'
 ```
 
+### Understanding Suggestion Behavior
+
+**Important**: The `segmentWithSuggestions()` method only provides suggestions for **single-character segments** that are NOT found in the dictionary.
+
+```php
+$segmenter = new ThaiSegmenter();
+$segmenter->enableSuggestions(['threshold' => 0.5]);
+
+// ✅ Will get suggestions - 'อ' is single character not in dictionary
+$result = $segmenter->segmentWithSuggestions('โอเคอไร');
+// 'อ' gets suggestions: ['กอ', 'ขอ', 'คอ', ...]
+
+// ❌ Won't get suggestions - 'ครบ' is multi-character and in dictionary
+$result = $segmenter->segmentWithSuggestions('สวัสดีครบ');
+// 'ครบ' gets NO suggestions (even though 'ครับ' might be intended)
+
+// ✅ For multi-character suggestions, use suggest() directly
+$suggestions = $segmenter->suggest('ครบ');
+// Returns: ['ครับ', 'ครอบ', 'คราบ', ...]
+```
+
+**Threshold Guidelines**:
+- **Single characters**: Use 0.4-0.5 (similarities max out at 0.5)
+- **Multi-character words**: Use 0.6-0.7 (higher precision possible)
+
 ### Configuration Options
 
 ```php
 $segmenter = new ThaiSegmenter();
 
-// Enable suggestions with custom configuration
+// Enable suggestions with proper threshold for single characters
 $segmenter->enableSuggestions([
-    'threshold' => 0.75,        // Minimum similarity score (0.0-1.0)
+    'threshold' => 0.5,         // Optimal for single characters
     'max_suggestions' => 3      // Maximum suggestions per word
 ]);
 
@@ -355,7 +387,7 @@ $segmenter->enableSuggestions([
 $segmenter->updateConfig([
     'enable_caching' => true,
     'memory_limit_mb' => 150,
-    'suggestion_threshold' => 0.8,
+    'suggestion_threshold' => 0.5,  // Adjusted for single characters
     'max_suggestions' => 5
 ]);
 
