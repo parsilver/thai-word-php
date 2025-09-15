@@ -24,7 +24,7 @@
     },
     "require-dev": {
         "symfony/console": "^7.0",
-        "pestphp/pest": "^3.0",
+        "pestphp/pest": "^4.1",
         "laravel/pint": "^1.0",
         "spatie/ray": "^1.28",
         "guzzlehttp/guzzle": "^7.0",
