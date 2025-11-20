@@ -3,11 +3,11 @@ name: Tests
 on:
   push:
     paths:
-      - '**.php'
-      - '.github/workflows/run-tests.yml'
-      - 'phpunit.xml.dist'
-      - 'composer.json'
-      - 'composer.lock'
+      - "**.php"
+      - ".github/workflows/run-tests.yml"
+      - "phpunit.xml.dist"
+      - "composer.json"
+      - "composer.lock"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -34,8 +34,8 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
-          coverage: none
+          extensions: mbstring, curl, dom, libxml, zip, pcntl, intl, iconv, fileinfo
+          coverage: pcov
 
       - name: Setup problem matchers
         run: |
