@@ -73,7 +73,7 @@ describe('FileDictionarySource', function () {
 
             // Clean up
             chmod($filePath, 0644);
-        });
+        })->skip(PHP_OS_FAMILY === 'Windows', 'File permissions with chmod do not work on Windows');
 
         it('throws exception when file_get_contents fails', function () {
             // Create a directory with same name as file to force file_get_contents to fail
@@ -154,7 +154,7 @@ describe('FileDictionarySource', function () {
 
             // Clean up
             chmod($filePath, 0644);
-        });
+        })->skip(PHP_OS_FAMILY === 'Windows', 'File permissions with chmod do not work on Windows');
 
         it('returns true for readable directory', function () {
             // Directories are technically "readable" but should fail when trying to get words
