@@ -10,8 +10,7 @@ use Farzai\ThaiWord\Dictionary\Parsers\LibreOfficeParser;
 use Farzai\ThaiWord\Dictionary\Parsers\PlainTextParser;
 use Farzai\ThaiWord\Dictionary\Sources\FileDictionarySource;
 use Farzai\ThaiWord\Dictionary\Sources\RemoteDictionarySource;
-use Http\Discovery\Psr17FactoryDiscovery;
-use Http\Discovery\Psr18ClientDiscovery;
+use Farzai\ThaiWord\Http\HttpClientFactory;
 use InvalidArgumentException;
 
 /**
@@ -27,7 +26,7 @@ class DictionarySourceFactory
      * Create a LibreOffice dictionary source by type
      *
      * @param  string  $type  Dictionary type (main, typos_translit, typos_common)
-     * @param  int  $timeout  Connection timeout in seconds
+     * @param  int  $timeout  Connection timeout in seconds (deprecated - configure on HTTP client)
      * @param  array<string, string>  $headers  Additional HTTP headers
      *
      * @throws InvalidArgumentException If dictionary type is unknown
@@ -37,7 +36,6 @@ class DictionarySourceFactory
         return self::createFromUrl(
             DictionaryUrls::getLibreOfficeUrl($type),
             $type,
-            $timeout,
             $headers
         );
     }
@@ -103,17 +101,21 @@ class DictionarySourceFactory
      *
      * @param  string  $url  Dictionary URL
      * @param  string  $parserType  Parser type ('main', 'typos_translit', 'typos_common')
-     * @param  int  $timeout  Connection timeout in seconds
-     * @param  array<string, string>  $headers  Additional HTTP headers
+     * @param  int|array<string, string>  $timeoutOrHeaders  Timeout (deprecated) or headers array
+     * @param  array<string, string>  $headers  Additional HTTP headers (if first arg is timeout)
      *
-     * @throws InvalidArgumentException If parser type is unknown
+     * @throws InvalidArgumentException If parser type is unknown or HTTP client unavailable
      */
     public static function createFromUrl(
         string $url,
         string $parserType = LibreOfficeParser::TYPE_MAIN,
-        int $timeout = 30,
+        int|array $timeoutOrHeaders = [],
         array $headers = []
     ): DictionarySourceInterface {
+        // Handle backward compatibility: if third param is int (timeout), use fourth param for headers
+        // If third param is array, use it as headers
+        $actualHeaders = is_array($timeoutOrHeaders) ? $timeoutOrHeaders : $headers;
+
         $parser = match ($parserType) {
             'plain' => new PlainTextParser,
             LibreOfficeParser::TYPE_MAIN => new LibreOfficeParser(LibreOfficeParser::TYPE_MAIN),
@@ -123,13 +125,14 @@ class DictionarySourceFactory
         };
 
         try {
+            // Create HTTP client using factory (will throw if dependencies missing)
+            $httpClient = HttpClientFactory::create();
+
             return new RemoteDictionarySource(
                 $url,
-                Psr18ClientDiscovery::find(),
-                Psr17FactoryDiscovery::findRequestFactory(),
+                $httpClient,
                 $parser,
-                $timeout,
-                $headers
+                $actualHeaders
             );
         } catch (\Throwable $e) {
             throw new InvalidArgumentException(
