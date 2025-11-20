@@ -13,12 +13,14 @@ describe('FileDictionarySource', function () {
     });
 
     afterEach(function () {
-        // Clean up temp files
+        // Clean up temp files and directories recursively
         if (is_dir($this->tempDir)) {
             $files = glob($this->tempDir.'/*');
             foreach ($files as $file) {
                 if (is_file($file)) {
                     unlink($file);
+                } elseif (is_dir($file)) {
+                    rmdir($file);
                 }
             }
             rmdir($this->tempDir);
