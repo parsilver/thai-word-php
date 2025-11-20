@@ -69,13 +69,12 @@ describe('DictionarySourceFactory', function () {
             ->toThrow(InvalidArgumentException::class, 'Unknown LibreOffice dictionary type: unknown');
     });
 
-    it('respects timeout and headers options', function () {
+    it('respects headers options', function () {
         $source = DictionarySourceFactory::createLibreOfficeDictionary('main', 60, ['User-Agent' => 'Test']);
 
         expect($source)->toBeInstanceOf(DictionarySourceInterface::class);
 
         $metadata = $source->getMetadata();
-        expect($metadata['timeout'])->toBe(60);
         expect($metadata['headers'])->toHaveKey('User-Agent');
         expect($metadata['headers']['User-Agent'])->toBe('Test');
     });

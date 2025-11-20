@@ -10,8 +10,7 @@ use Farzai\ThaiWord\Dictionary\Parsers\LibreOfficeParser;
 use Farzai\ThaiWord\Dictionary\Parsers\PlainTextParser;
 use Farzai\ThaiWord\Dictionary\Sources\FileDictionarySource;
 use Farzai\ThaiWord\Dictionary\Sources\RemoteDictionarySource;
-use Http\Discovery\Psr17FactoryDiscovery;
-use Http\Discovery\Psr18ClientDiscovery;
+use Farzai\ThaiWord\Http\HttpClientFactory;
 use InvalidArgumentException;
 
 /**
@@ -106,7 +105,7 @@ class DictionarySourceFactory
      * @param  int  $timeout  Connection timeout in seconds
      * @param  array<string, string>  $headers  Additional HTTP headers
      *
-     * @throws InvalidArgumentException If parser type is unknown
+     * @throws InvalidArgumentException If parser type is unknown or HTTP client unavailable
      */
     public static function createFromUrl(
         string $url,
@@ -123,12 +122,13 @@ class DictionarySourceFactory
         };
 
         try {
+            // Create HTTP client using factory (will throw if dependencies missing)
+            $httpClient = HttpClientFactory::create($timeout);
+
             return new RemoteDictionarySource(
                 $url,
-                Psr18ClientDiscovery::find(),
-                Psr17FactoryDiscovery::findRequestFactory(),
+                $httpClient,
                 $parser,
-                $timeout,
                 $headers
             );
         } catch (\Throwable $e) {
