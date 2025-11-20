@@ -1,7 +1,6 @@
 <?php
 
 use Farzai\ThaiWord\Contracts\HttpClientInterface;
-use Farzai\ThaiWord\Exceptions\MissingDependencyException;
 use Farzai\ThaiWord\Http\HttpClientFactory;
 
 describe('HttpClientFactory', function () {

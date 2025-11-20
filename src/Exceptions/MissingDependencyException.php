@@ -14,8 +14,6 @@ class MissingDependencyException extends SegmentationException
 {
     /**
      * Create exception for missing HTTP client dependencies
-     *
-     * @return self
      */
     public static function forHttpClient(): self
     {
@@ -23,7 +21,7 @@ class MissingDependencyException extends SegmentationException
             "HTTP client dependencies are required for downloading remote dictionaries.\n".
             "Please install the required packages:\n\n".
             "  composer require psr/http-client psr/http-factory php-http/discovery guzzlehttp/guzzle\n\n".
-            "Alternatively, use local dictionary files to avoid this dependency.",
+            'Alternatively, use local dictionary files to avoid this dependency.',
             self::CONFIG_MISSING_REQUIRED
         );
     }
@@ -33,7 +31,6 @@ class MissingDependencyException extends SegmentationException
      *
      * @param  string  $className  The missing class name
      * @param  string  $package  The package that provides the class
-     * @return self
      */
     public static function forClass(string $className, string $package): self
     {

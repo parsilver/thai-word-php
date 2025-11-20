@@ -110,5 +110,4 @@ class RemoteDictionarySource implements DictionarySourceInterface
             );
         }
     }
-
 }

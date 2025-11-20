@@ -20,7 +20,6 @@ class HttpClientFactory
      * Create HTTP client using PSR-18/PSR-17 auto-discovery
      *
      * @param  int  $timeout  Request timeout in seconds
-     * @return HttpClientInterface
      *
      * @throws MissingDependencyException If HTTP client dependencies not available
      */
@@ -42,7 +41,6 @@ class HttpClientFactory
      * Create HTTP client if available, return null otherwise
      *
      * @param  int  $timeout  Request timeout in seconds
-     * @return HttpClientInterface|null
      */
     public static function createIfAvailable(int $timeout = 30): ?HttpClientInterface
     {

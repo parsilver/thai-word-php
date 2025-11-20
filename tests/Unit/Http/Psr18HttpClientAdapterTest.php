@@ -16,7 +16,7 @@ describe('Psr18HttpClientAdapter', function () {
         $mockHandler = new MockHandler([]);
         $handlerStack = HandlerStack::create($mockHandler);
         $httpClient = new Client(['handler' => $handlerStack]);
-        $requestFactory = new HttpFactory();
+        $requestFactory = new HttpFactory;
 
         $adapter = new Psr18HttpClientAdapter($httpClient, $requestFactory);
 
@@ -29,7 +29,7 @@ describe('Psr18HttpClientAdapter', function () {
         ]);
         $handlerStack = HandlerStack::create($mockHandler);
         $httpClient = new Client(['handler' => $handlerStack]);
-        $requestFactory = new HttpFactory();
+        $requestFactory = new HttpFactory;
 
         $adapter = new Psr18HttpClientAdapter($httpClient, $requestFactory);
         $response = $adapter->get('https://example.com/test.txt');
@@ -47,7 +47,7 @@ describe('Psr18HttpClientAdapter', function () {
         ]);
         $handlerStack = HandlerStack::create($mockHandler);
         $httpClient = new Client(['handler' => $handlerStack]);
-        $requestFactory = new HttpFactory();
+        $requestFactory = new HttpFactory;
 
         $adapter = new Psr18HttpClientAdapter($httpClient, $requestFactory);
         $response = $adapter->head('https://example.com/test.txt');
@@ -63,7 +63,7 @@ describe('Psr18HttpClientAdapter', function () {
         ]);
         $handlerStack = HandlerStack::create($mockHandler);
         $httpClient = new Client(['handler' => $handlerStack]);
-        $requestFactory = new HttpFactory();
+        $requestFactory = new HttpFactory;
 
         $adapter = new Psr18HttpClientAdapter($httpClient, $requestFactory);
 
@@ -74,7 +74,7 @@ describe('Psr18HttpClientAdapter', function () {
         $mockHandler = new MockHandler([]);
         $handlerStack = HandlerStack::create($mockHandler);
         $httpClient = new Client(['handler' => $handlerStack]);
-        $requestFactory = new HttpFactory();
+        $requestFactory = new HttpFactory;
 
         $adapter = new Psr18HttpClientAdapter($httpClient, $requestFactory);
 
@@ -90,7 +90,7 @@ describe('Psr18HttpClientAdapter', function () {
         ]);
         $handlerStack = HandlerStack::create($mockHandler);
         $httpClient = new Client(['handler' => $handlerStack]);
-        $requestFactory = new HttpFactory();
+        $requestFactory = new HttpFactory;
 
         $adapter = new Psr18HttpClientAdapter($httpClient, $requestFactory);
 
@@ -102,7 +102,7 @@ describe('Psr18HttpClientAdapter', function () {
         $mockHandler = new MockHandler([]);
         $handlerStack = HandlerStack::create($mockHandler);
         $httpClient = new Client(['handler' => $handlerStack]);
-        $requestFactory = new HttpFactory();
+        $requestFactory = new HttpFactory;
 
         $adapter = new Psr18HttpClientAdapter($httpClient, $requestFactory);
 
@@ -116,7 +116,7 @@ describe('Psr18HttpClientAdapter', function () {
         ]);
         $handlerStack = HandlerStack::create($mockHandler);
         $httpClient = new Client(['handler' => $handlerStack]);
-        $requestFactory = new HttpFactory();
+        $requestFactory = new HttpFactory;
 
         $adapter = new Psr18HttpClientAdapter($httpClient, $requestFactory);
         $response = $adapter->get('https://example.com', ['X-Custom-Header' => 'TestValue']);

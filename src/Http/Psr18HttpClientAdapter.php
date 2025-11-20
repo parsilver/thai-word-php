@@ -67,7 +67,6 @@ class Psr18HttpClientAdapter implements HttpClientInterface
      * @param  string  $method  HTTP method (GET, HEAD, etc.)
      * @param  string  $url  Target URL
      * @param  array<string, string>  $headers  Custom headers
-     * @return HttpResponseInterface
      *
      * @throws HttpException If request fails
      */

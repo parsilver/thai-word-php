@@ -17,7 +17,6 @@ interface HttpClientInterface
      *
      * @param  string  $url  The URL to fetch
      * @param  array<string, string>  $headers  Optional headers
-     * @return HttpResponseInterface
      *
      * @throws \Farzai\ThaiWord\Exceptions\HttpException If request fails
      */
@@ -28,7 +27,6 @@ interface HttpClientInterface
      *
      * @param  string  $url  The URL to check
      * @param  array<string, string>  $headers  Optional headers
-     * @return HttpResponseInterface
      *
      * @throws \Farzai\ThaiWord\Exceptions\HttpException If request fails
      */
