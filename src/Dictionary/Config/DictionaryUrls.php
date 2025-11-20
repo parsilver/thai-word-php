@@ -15,11 +15,11 @@ final class DictionaryUrls
     /**
      * LibreOffice Thai dictionary URLs
      */
-    public const LIBREOFFICE_THAI_MAIN = 'https://cgit.freedesktop.org/libreoffice/dictionaries/plain/th_TH/th_TH.dic';
+    public const LIBREOFFICE_THAI_MAIN = 'https://raw.githubusercontent.com/LibreOffice/dictionaries/master/th_TH/th_TH.dic';
 
-    public const LIBREOFFICE_THAI_TYPOS_TRANSLIT = 'https://cgit.freedesktop.org/libreoffice/dictionaries/plain/th_TH/typos-translit.txt';
+    public const LIBREOFFICE_THAI_TYPOS_TRANSLIT = 'https://raw.githubusercontent.com/LibreOffice/dictionaries/master/th_TH/typos-translit.txt';
 
-    public const LIBREOFFICE_THAI_TYPOS_COMMON = 'https://cgit.freedesktop.org/libreoffice/dictionaries/plain/th_TH/typos-common.txt';
+    public const LIBREOFFICE_THAI_TYPOS_COMMON = 'https://raw.githubusercontent.com/LibreOffice/dictionaries/master/th_TH/typos-common.txt';
 
     /**
      * Get all LibreOffice dictionary URLs

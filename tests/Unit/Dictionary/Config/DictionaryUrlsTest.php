@@ -7,21 +7,21 @@ describe('DictionaryUrls', function () {
     it('provides LibreOffice Thai main dictionary URL', function () {
         $url = DictionaryUrls::getLibreOfficeUrl('main');
 
-        expect($url)->toBe('https://cgit.freedesktop.org/libreoffice/dictionaries/plain/th_TH/th_TH.dic');
+        expect($url)->toBe('https://raw.githubusercontent.com/LibreOffice/dictionaries/master/th_TH/th_TH.dic');
         expect($url)->toBeValidUrl();
     });
 
     it('provides LibreOffice Thai typos transliteration dictionary URL', function () {
         $url = DictionaryUrls::getLibreOfficeUrl('typos_translit');
 
-        expect($url)->toBe('https://cgit.freedesktop.org/libreoffice/dictionaries/plain/th_TH/typos-translit.txt');
+        expect($url)->toBe('https://raw.githubusercontent.com/LibreOffice/dictionaries/master/th_TH/typos-translit.txt');
         expect($url)->toBeValidUrl();
     });
 
     it('provides LibreOffice Thai typos common dictionary URL', function () {
         $url = DictionaryUrls::getLibreOfficeUrl('typos_common');
 
-        expect($url)->toBe('https://cgit.freedesktop.org/libreoffice/dictionaries/plain/th_TH/typos-common.txt');
+        expect($url)->toBe('https://raw.githubusercontent.com/LibreOffice/dictionaries/master/th_TH/typos-common.txt');
         expect($url)->toBeValidUrl();
     });
 

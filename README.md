@@ -421,7 +421,7 @@ Please review [our security policy](../../security/policy) on how to report secu
 
 ### Data Sources
 
-- [LibreOffice Thai Dictionary](https://cgit.freedesktop.org/libreoffice/dictionaries/tree/th_TH) - Primary Thai word dictionary source
+- [LibreOffice Thai Dictionary](https://github.com/LibreOffice/dictionaries/tree/master/th_TH) - Primary Thai word dictionary source
 
 ## License
 
