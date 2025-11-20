@@ -19,11 +19,14 @@ class HttpClientFactory
     /**
      * Create HTTP client using PSR-18/PSR-17 auto-discovery
      *
-     * @param  int  $timeout  Request timeout in seconds
+     * Note: Timeout configuration is handled by the underlying HTTP client
+     * implementation discovered via PSR auto-discovery. To customize timeout,
+     * create your own HttpClientInterface implementation or configure the
+     * discovered client directly.
      *
      * @throws MissingDependencyException If HTTP client dependencies not available
      */
-    public static function create(int $timeout = 30): HttpClientInterface
+    public static function create(): HttpClientInterface
     {
         // Check if HTTP discovery is available
         if (! self::isHttpClientAvailable()) {
@@ -34,22 +37,20 @@ class HttpClientFactory
         $httpClient = \Http\Discovery\Psr18ClientDiscovery::find();
         $requestFactory = \Http\Discovery\Psr17FactoryDiscovery::findRequestFactory();
 
-        return new Psr18HttpClientAdapter($httpClient, $requestFactory, $timeout);
+        return new Psr18HttpClientAdapter($httpClient, $requestFactory);
     }
 
     /**
      * Create HTTP client if available, return null otherwise
-     *
-     * @param  int  $timeout  Request timeout in seconds
      */
-    public static function createIfAvailable(int $timeout = 30): ?HttpClientInterface
+    public static function createIfAvailable(): ?HttpClientInterface
     {
         if (! self::isHttpClientAvailable()) {
             return null;
         }
 
         try {
-            return self::create($timeout);
+            return self::create();
         } catch (MissingDependencyException) {
             return null;
         }

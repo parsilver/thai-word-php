@@ -70,6 +70,25 @@ describe('Psr18HttpClientAdapter', function () {
         expect($adapter->isAvailable('https://example.com'))->toBeTrue();
     });
 
+    it('allows multiple calls to getContent', function () {
+        $mockHandler = new MockHandler([
+            new Response(200, ['Content-Type' => 'text/plain'], 'Test content'),
+        ]);
+        $handlerStack = HandlerStack::create($mockHandler);
+        $httpClient = new Client(['handler' => $handlerStack]);
+        $requestFactory = new HttpFactory;
+
+        $adapter = new Psr18HttpClientAdapter($httpClient, $requestFactory);
+        $response = $adapter->get('https://example.com/test.txt');
+
+        // Call getContent() multiple times - should return same content
+        $content1 = $response->getContent();
+        $content2 = $response->getContent();
+
+        expect($content1)->toBe('Test content');
+        expect($content2)->toBe('Test content');
+    });
+
     it('returns false for invalid URL', function () {
         $mockHandler = new MockHandler([]);
         $handlerStack = HandlerStack::create($mockHandler);

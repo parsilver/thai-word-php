@@ -17,19 +17,22 @@ use Psr\Http\Message\RequestFactoryInterface;
  *
  * Adapts PSR-18/PSR-17 interfaces to our HttpClientInterface.
  * Validates that required dependencies are installed on construction.
+ *
+ * Note: Timeout configuration should be done on the underlying HTTP client
+ * before passing it to this adapter, as PSR-18 doesn't define a standard
+ * timeout interface.
  */
 class Psr18HttpClientAdapter implements HttpClientInterface
 {
     private const DEFAULT_HEADERS = [
-        'User-Agent' => 'Thai-Word-PHP/2.0 (+https://github.com/parsilver/thai-word-php)',
+        'User-Agent' => 'Thai-Word-PHP (+https://github.com/parsilver/thai-word-php)',
         'Accept' => 'text/plain, text/*, */*',
         'Connection' => 'close',
     ];
 
     public function __construct(
         private readonly ClientInterface $httpClient,
-        private readonly RequestFactoryInterface $requestFactory,
-        private readonly int $timeout = 30
+        private readonly RequestFactoryInterface $requestFactory
     ) {
         // Validate dependencies are available
         $this->validateDependencies();

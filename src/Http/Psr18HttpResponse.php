@@ -25,7 +25,7 @@ class Psr18HttpResponse implements HttpResponseInterface
 
     public function getContent(): string
     {
-        return $this->response->getBody()->getContents();
+        return (string) $this->response->getBody();
     }
 
     public function getHeader(string $name): string
