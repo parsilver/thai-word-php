@@ -35,19 +35,11 @@
         "pestphp/pest": "^4.1",
         "laravel/pint": "^1.0",
         "spatie/ray": "^1.28",
-        "guzzlehttp/guzzle": "^7.0",
-        "mockery/mockery": "^1.6",
-        "psr/http-client": "^1.0",
-        "psr/http-factory": "^1.0",
-        "php-http/discovery": "^1.19",
-        "guzzlehttp/psr7": "^2.0"
+        "farzai/transport": "^1.0",
+        "mockery/mockery": "^1.6"
     },
     "suggest": {
-        "psr/http-client": "Required for downloading remote dictionaries (PSR-18 HTTP Client)",
-        "psr/http-factory": "Required for downloading remote dictionaries (PSR-17 HTTP Factory)",
-        "php-http/discovery": "Enables automatic discovery of HTTP client implementations",
-        "guzzlehttp/psr7": "Provides PSR-7 message implementations for HTTP operations",
-        "guzzlehttp/guzzle": "Recommended HTTP client implementation for remote dictionary downloads"
+        "farzai/transport": "Required for downloading remote dictionaries from URLs"
     },
     "autoload": {
         "psr-4": {

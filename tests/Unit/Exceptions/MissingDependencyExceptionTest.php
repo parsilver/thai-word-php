@@ -9,9 +9,9 @@ describe('MissingDependencyException', function () {
         $exception = MissingDependencyException::forHttpClient();
 
         expect($exception)->toBeInstanceOf(MissingDependencyException::class);
-        expect($exception->getMessage())->toContain('HTTP client dependencies are required');
+        expect($exception->getMessage())->toContain('HTTP transport library is required');
         expect($exception->getMessage())->toContain('composer require');
-        expect($exception->getMessage())->toContain('psr/http-client');
+        expect($exception->getMessage())->toContain('farzai/transport');
         expect($exception->getCode())->toBe(SegmentationException::CONFIG_MISSING_REQUIRED);
     });
 

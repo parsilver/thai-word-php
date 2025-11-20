@@ -10,15 +10,16 @@ use Farzai\ThaiWord\Dictionary\Parsers\LibreOfficeParser;
 use Farzai\ThaiWord\Dictionary\Parsers\PlainTextParser;
 use Farzai\ThaiWord\Dictionary\Sources\FileDictionarySource;
 use Farzai\ThaiWord\Dictionary\Sources\RemoteDictionarySource;
-use Farzai\ThaiWord\Http\HttpClientFactory;
+use Farzai\Transport\Transport;
+use Farzai\Transport\TransportBuilder;
 use InvalidArgumentException;
 
 /**
  * Factory for creating dictionary sources
  *
  * Provides convenient methods for creating different types of dictionary sources
- * with appropriate parsers and configurations. Uses centralized URL configuration
- * to eliminate duplication and improve maintainability.
+ * with appropriate parsers and configurations. Uses transport-php for HTTP operations
+ * with built-in retry logic (3 attempts with exponential backoff).
  */
 class DictionarySourceFactory
 {
@@ -26,16 +27,17 @@ class DictionarySourceFactory
      * Create a LibreOffice dictionary source by type
      *
      * @param  string  $type  Dictionary type (main, typos_translit, typos_common)
-     * @param  int  $timeout  Connection timeout in seconds (deprecated - configure on HTTP client)
+     * @param  int  $timeout  Connection timeout in seconds (default: 30)
      * @param  array<string, string>  $headers  Additional HTTP headers
      *
-     * @throws InvalidArgumentException If dictionary type is unknown
+     * @throws InvalidArgumentException If dictionary type is unknown or transport unavailable
      */
     public static function createLibreOfficeDictionary(string $type, int $timeout = 30, array $headers = []): DictionarySourceInterface
     {
         return self::createFromUrl(
             DictionaryUrls::getLibreOfficeUrl($type),
             $type,
+            $timeout,
             $headers
         );
     }
@@ -100,22 +102,18 @@ class DictionarySourceFactory
      * Create a remote dictionary source from URL
      *
      * @param  string  $url  Dictionary URL
-     * @param  string  $parserType  Parser type ('main', 'typos_translit', 'typos_common')
-     * @param  int|array<string, string>  $timeoutOrHeaders  Timeout (deprecated) or headers array
-     * @param  array<string, string>  $headers  Additional HTTP headers (if first arg is timeout)
+     * @param  string  $parserType  Parser type ('main', 'typos_translit', 'typos_common', 'plain')
+     * @param  int  $timeout  Connection timeout in seconds (default: 30)
+     * @param  array<string, string>  $headers  Additional HTTP headers
      *
-     * @throws InvalidArgumentException If parser type is unknown or HTTP client unavailable
+     * @throws InvalidArgumentException If parser type is unknown or transport unavailable
      */
     public static function createFromUrl(
         string $url,
         string $parserType = LibreOfficeParser::TYPE_MAIN,
-        int|array $timeoutOrHeaders = [],
+        int $timeout = 30,
         array $headers = []
     ): DictionarySourceInterface {
-        // Handle backward compatibility: if third param is int (timeout), use fourth param for headers
-        // If third param is array, use it as headers
-        $actualHeaders = is_array($timeoutOrHeaders) ? $timeoutOrHeaders : $headers;
-
         $parser = match ($parserType) {
             'plain' => new PlainTextParser,
             LibreOfficeParser::TYPE_MAIN => new LibreOfficeParser(LibreOfficeParser::TYPE_MAIN),
@@ -125,14 +123,13 @@ class DictionarySourceFactory
         };
 
         try {
-            // Create HTTP client using factory (will throw if dependencies missing)
-            $httpClient = HttpClientFactory::create();
+            // Create Transport instance with retry logic and timeout
+            $transport = self::createTransport($timeout, $headers);
 
             return new RemoteDictionarySource(
                 $url,
-                $httpClient,
-                $parser,
-                $actualHeaders
+                $transport,
+                $parser
             );
         } catch (\Throwable $e) {
             throw new InvalidArgumentException(
@@ -164,7 +161,7 @@ class DictionarySourceFactory
      *
      * @param  string  $type  Source type ('file', 'url', 'libreoffice_main', 'libreoffice_typos_translit', 'libreoffice_typos_common')
      * @param  string  $source  Source path/URL (ignored for libreoffice types)
-     * @param  array<string, mixed>  $options  Additional options
+     * @param  array<string, mixed>  $options  Additional options (timeout, headers, parser_type)
      *
      * @throws InvalidArgumentException If type is unknown
      */
@@ -183,5 +180,49 @@ class DictionarySourceFactory
             'libreoffice' => self::createLibreOfficeThaiDictionary($timeout, $headers),
             default => throw new InvalidArgumentException("Unknown dictionary source type: {$type}")
         };
+    }
+
+    /**
+     * Create a Transport instance with retry logic and timeout
+     *
+     * @param  int  $timeout  Request timeout in seconds
+     * @param  array<string, string>  $headers  HTTP headers to include
+     * @return Transport Transport instance configured with retry and timeout
+     *
+     * @throws InvalidArgumentException If transport-php is not available
+     */
+    private static function createTransport(int $timeout = 30, array $headers = []): Transport
+    {
+        // Check if transport-php is available
+        if (! class_exists(TransportBuilder::class)) {
+            throw new InvalidArgumentException(
+                'HTTP client not available. Install farzai/transport: composer require farzai/transport'
+            );
+        }
+
+        $transport = TransportBuilder::make()->build();
+
+        // Configure timeout
+        $transport->setTimeout($timeout);
+
+        // Configure retry logic (3 attempts)
+        $transport->setRetries(3);
+
+        // Add custom headers if provided
+        if (! empty($headers)) {
+            $transport->setHeaders($headers);
+        }
+
+        return $transport;
+    }
+
+    /**
+     * Check if HTTP transport is available
+     *
+     * @return bool True if transport-php is installed and available
+     */
+    public static function isTransportAvailable(): bool
+    {
+        return class_exists(TransportBuilder::class);
     }
 }

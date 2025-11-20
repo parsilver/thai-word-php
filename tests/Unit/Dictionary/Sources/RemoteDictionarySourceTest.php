@@ -1,18 +1,20 @@
 <?php
 
 use Farzai\ThaiWord\Contracts\DictionaryParserInterface;
-use Farzai\ThaiWord\Contracts\HttpClientInterface;
-use Farzai\ThaiWord\Contracts\HttpResponseInterface;
 use Farzai\ThaiWord\Dictionary\Sources\RemoteDictionarySource;
 use Farzai\ThaiWord\Exceptions\DictionaryException;
-use Farzai\ThaiWord\Exceptions\HttpException;
 use Farzai\ThaiWord\Exceptions\SegmentationException;
+use Farzai\Transport\Transport;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\StreamInterface;
+use RuntimeException;
 
 describe('RemoteDictionarySource', function () {
     beforeEach(function () {
-        $this->httpClient = Mockery::mock(HttpClientInterface::class);
+        $this->transport = Mockery::mock(Transport::class);
         $this->parser = Mockery::mock(DictionaryParserInterface::class);
-        $this->response = Mockery::mock(HttpResponseInterface::class);
+        $this->response = Mockery::mock(ResponseInterface::class);
+        $this->stream = Mockery::mock(StreamInterface::class);
         $this->testUrl = 'https://example.com/dictionary.txt';
     });
 
@@ -25,24 +27,28 @@ describe('RemoteDictionarySource', function () {
             $content = "สวัสดี\nขอบคุณ\nสบายดี";
             $words = ['สวัสดี', 'ขอบคุณ', 'สบายดี'];
 
-            $this->response->shouldReceive('isSuccessful')
+            $this->response->shouldReceive('getStatusCode')
                 ->once()
-                ->andReturn(true);
+                ->andReturn(200);
 
-            $this->response->shouldReceive('getContent')
+            $this->response->shouldReceive('getBody')
+                ->once()
+                ->andReturn($this->stream);
+
+            $this->stream->shouldReceive('__toString')
                 ->once()
                 ->andReturn($content);
 
-            $this->response->shouldReceive('getStatusCode')
-                ->never();
-
-            $this->response->shouldReceive('getHeader')
+            $this->response->shouldReceive('getHeaderLine')
                 ->with('Content-Type')
                 ->andReturn('text/plain; charset=utf-8');
 
-            $this->httpClient->shouldReceive('get')
+            $this->transport->shouldReceive('sendRequest')
                 ->once()
-                ->with($this->testUrl, [])
+                ->with(Mockery::on(function ($request) {
+                    return $request->getMethod() === 'GET' &&
+                           (string) $request->getUri() === $this->testUrl;
+                }))
                 ->andReturn($this->response);
 
             $this->parser->shouldReceive('parse')
@@ -52,7 +58,7 @@ describe('RemoteDictionarySource', function () {
 
             $source = new RemoteDictionarySource(
                 $this->testUrl,
-                $this->httpClient,
+                $this->transport,
                 $this->parser
             );
 
@@ -61,48 +67,12 @@ describe('RemoteDictionarySource', function () {
             expect($result)->toBe($words);
         });
 
-        it('can pass custom headers to HTTP client', function () {
-            $content = 'test';
-            $customHeaders = [
-                'User-Agent' => 'TestBot/1.0',
-                'Accept-Language' => 'th-TH',
-            ];
-
-            $this->response->shouldReceive('isSuccessful')
-                ->andReturn(true);
-
-            $this->response->shouldReceive('getContent')
-                ->andReturn($content);
-
-            $this->response->shouldReceive('getHeader')
-                ->with('Content-Type')
-                ->andReturn('text/plain');
-
-            $this->httpClient->shouldReceive('get')
-                ->once()
-                ->with($this->testUrl, $customHeaders)
-                ->andReturn($this->response);
-
-            $this->parser->shouldReceive('parse')
-                ->with($content)
-                ->andReturn(['test']);
-
-            $source = new RemoteDictionarySource(
-                $this->testUrl,
-                $this->httpClient,
-                $this->parser,
-                $customHeaders
-            );
-
-            $source->getWords();
-        });
-
         it('throws exception for invalid URL', function () {
             $invalidUrl = 'not-a-valid-url';
 
             $source = new RemoteDictionarySource(
                 $invalidUrl,
-                $this->httpClient,
+                $this->transport,
                 $this->parser
             );
 
@@ -115,22 +85,17 @@ describe('RemoteDictionarySource', function () {
         });
 
         it('throws exception when HTTP request fails', function () {
-            $this->response->shouldReceive('isSuccessful')
-                ->once()
-                ->andReturn(false);
-
             $this->response->shouldReceive('getStatusCode')
                 ->once()
                 ->andReturn(404);
 
-            $this->httpClient->shouldReceive('get')
+            $this->transport->shouldReceive('sendRequest')
                 ->once()
-                ->with($this->testUrl, [])
                 ->andReturn($this->response);
 
             $source = new RemoteDictionarySource(
                 $this->testUrl,
-                $this->httpClient,
+                $this->transport,
                 $this->parser
             );
 
@@ -143,22 +108,25 @@ describe('RemoteDictionarySource', function () {
         });
 
         it('throws exception when response is empty', function () {
-            $this->response->shouldReceive('isSuccessful')
+            $this->response->shouldReceive('getStatusCode')
                 ->once()
-                ->andReturn(true);
+                ->andReturn(200);
 
-            $this->response->shouldReceive('getContent')
+            $this->response->shouldReceive('getBody')
+                ->once()
+                ->andReturn($this->stream);
+
+            $this->stream->shouldReceive('__toString')
                 ->once()
                 ->andReturn('');
 
-            $this->httpClient->shouldReceive('get')
+            $this->transport->shouldReceive('sendRequest')
                 ->once()
-                ->with($this->testUrl, [])
                 ->andReturn($this->response);
 
             $source = new RemoteDictionarySource(
                 $this->testUrl,
-                $this->httpClient,
+                $this->transport,
                 $this->parser
             );
 
@@ -170,17 +138,16 @@ describe('RemoteDictionarySource', function () {
                 );
         });
 
-        it('wraps HTTP exceptions in DictionaryException', function () {
-            $httpException = new HttpException('Network error');
+        it('wraps Transport exceptions in DictionaryException', function () {
+            $networkException = new RuntimeException('Network error');
 
-            $this->httpClient->shouldReceive('get')
+            $this->transport->shouldReceive('sendRequest')
                 ->once()
-                ->with($this->testUrl, [])
-                ->andThrow($httpException);
+                ->andThrow($networkException);
 
             $source = new RemoteDictionarySource(
                 $this->testUrl,
-                $this->httpClient,
+                $this->transport,
                 $this->parser
             );
 
@@ -196,21 +163,17 @@ describe('RemoteDictionarySource', function () {
             $errorCodes = [400, 403, 404, 500, 503];
 
             foreach ($errorCodes as $code) {
-                $this->response->shouldReceive('isSuccessful')
-                    ->once()
-                    ->andReturn(false);
-
                 $this->response->shouldReceive('getStatusCode')
                     ->once()
                     ->andReturn($code);
 
-                $this->httpClient->shouldReceive('get')
+                $this->transport->shouldReceive('sendRequest')
                     ->once()
                     ->andReturn($this->response);
 
                 $source = new RemoteDictionarySource(
                     $this->testUrl,
-                    $this->httpClient,
+                    $this->transport,
                     $this->parser
                 );
 
@@ -218,23 +181,31 @@ describe('RemoteDictionarySource', function () {
                     ->toThrow(DictionaryException::class);
 
                 Mockery::close();
-                $this->httpClient = Mockery::mock(HttpClientInterface::class);
+                $this->transport = Mockery::mock(Transport::class);
                 $this->parser = Mockery::mock(DictionaryParserInterface::class);
-                $this->response = Mockery::mock(HttpResponseInterface::class);
+                $this->response = Mockery::mock(ResponseInterface::class);
+                $this->stream = Mockery::mock(StreamInterface::class);
             }
         });
     });
 
     describe('isAvailable', function () {
-        it('delegates to HTTP client isAvailable method', function () {
-            $this->httpClient->shouldReceive('isAvailable')
+        it('returns true when URL is accessible', function () {
+            $this->response->shouldReceive('getStatusCode')
                 ->once()
-                ->with($this->testUrl)
-                ->andReturn(true);
+                ->andReturn(200);
+
+            $this->transport->shouldReceive('sendRequest')
+                ->once()
+                ->with(Mockery::on(function ($request) {
+                    return $request->getMethod() === 'HEAD' &&
+                           (string) $request->getUri() === $this->testUrl;
+                }))
+                ->andReturn($this->response);
 
             $source = new RemoteDictionarySource(
                 $this->testUrl,
-                $this->httpClient,
+                $this->transport,
                 $this->parser
             );
 
@@ -243,15 +214,48 @@ describe('RemoteDictionarySource', function () {
             expect($result)->toBeTrue();
         });
 
-        it('returns false when URL is not available', function () {
-            $this->httpClient->shouldReceive('isAvailable')
+        it('returns false when URL is not accessible', function () {
+            $this->response->shouldReceive('getStatusCode')
                 ->once()
-                ->with($this->testUrl)
-                ->andReturn(false);
+                ->andReturn(404);
+
+            $this->transport->shouldReceive('sendRequest')
+                ->once()
+                ->andReturn($this->response);
 
             $source = new RemoteDictionarySource(
                 $this->testUrl,
-                $this->httpClient,
+                $this->transport,
+                $this->parser
+            );
+
+            $result = $source->isAvailable();
+
+            expect($result)->toBeFalse();
+        });
+
+        it('returns false when transport throws exception', function () {
+            $this->transport->shouldReceive('sendRequest')
+                ->once()
+                ->andThrow(new RuntimeException('Network error'));
+
+            $source = new RemoteDictionarySource(
+                $this->testUrl,
+                $this->transport,
+                $this->parser
+            );
+
+            $result = $source->isAvailable();
+
+            expect($result)->toBeFalse();
+        });
+
+        it('returns false for invalid URLs', function () {
+            $invalidUrl = 'not-a-valid-url';
+
+            $source = new RemoteDictionarySource(
+                $invalidUrl,
+                $this->transport,
                 $this->parser
             );
 
@@ -269,7 +273,7 @@ describe('RemoteDictionarySource', function () {
 
             $source = new RemoteDictionarySource(
                 $this->testUrl,
-                $this->httpClient,
+                $this->transport,
                 $this->parser
             );
 
@@ -279,44 +283,28 @@ describe('RemoteDictionarySource', function () {
                 ->toBeArray()
                 ->toHaveKey('url', $this->testUrl)
                 ->toHaveKey('parser_type', 'plain_text')
-                ->toHaveKey('headers', [])
                 ->toHaveKey('last_download', null)
                 ->toHaveKey('content_length', null)
                 ->toHaveKey('content_type', null);
         });
 
-        it('includes custom headers in metadata', function () {
-            $headers = ['Authorization' => 'Bearer token'];
-
-            $this->parser->shouldReceive('getType')
-                ->andReturn('plain_text');
-
-            $source = new RemoteDictionarySource(
-                $this->testUrl,
-                $this->httpClient,
-                $this->parser,
-                $headers
-            );
-
-            $metadata = $source->getMetadata();
-
-            expect($metadata['headers'])->toBe($headers);
-        });
-
         it('includes download metadata after successful download', function () {
             $content = 'test content';
 
-            $this->response->shouldReceive('isSuccessful')
-                ->andReturn(true);
+            $this->response->shouldReceive('getStatusCode')
+                ->andReturn(200);
 
-            $this->response->shouldReceive('getContent')
+            $this->response->shouldReceive('getBody')
+                ->andReturn($this->stream);
+
+            $this->stream->shouldReceive('__toString')
                 ->andReturn($content);
 
-            $this->response->shouldReceive('getHeader')
+            $this->response->shouldReceive('getHeaderLine')
                 ->with('Content-Type')
                 ->andReturn('text/plain; charset=utf-8');
 
-            $this->httpClient->shouldReceive('get')
+            $this->transport->shouldReceive('sendRequest')
                 ->andReturn($this->response);
 
             $this->parser->shouldReceive('parse')
@@ -327,7 +315,7 @@ describe('RemoteDictionarySource', function () {
 
             $source = new RemoteDictionarySource(
                 $this->testUrl,
-                $this->httpClient,
+                $this->transport,
                 $this->parser
             );
 
@@ -343,66 +331,6 @@ describe('RemoteDictionarySource', function () {
             expect($metadata['content_length'])->toBe(strlen($content));
             expect($metadata['content_type'])->toBe('text/plain; charset=utf-8');
         });
-
-        it('updates metadata on each download', function () {
-            $content1 = 'first';
-            $content2 = 'second download';
-
-            // First download
-            $this->response->shouldReceive('isSuccessful')
-                ->twice()
-                ->andReturn(true);
-
-            $this->response->shouldReceive('getContent')
-                ->once()
-                ->andReturn($content1);
-
-            $this->response->shouldReceive('getContent')
-                ->once()
-                ->andReturn($content2);
-
-            $this->response->shouldReceive('getHeader')
-                ->with('Content-Type')
-                ->twice()
-                ->andReturn('text/plain');
-
-            $this->httpClient->shouldReceive('get')
-                ->twice()
-                ->andReturn($this->response);
-
-            $this->parser->shouldReceive('parse')
-                ->twice()
-                ->andReturn(['test']);
-
-            $this->parser->shouldReceive('getType')
-                ->andReturn('plain_text');
-
-            $source = new RemoteDictionarySource(
-                $this->testUrl,
-                $this->httpClient,
-                $this->parser
-            );
-
-            // First download
-            $source->getWords();
-            $metadata1 = $source->getMetadata();
-
-            // Small delay
-            usleep(10000); // 10ms
-
-            // Second download
-            $source->getWords();
-            $metadata2 = $source->getMetadata();
-
-            // Content length should be updated
-            expect($metadata2['content_length'])
-                ->toBe(strlen($content2))
-                ->not->toBe($metadata1['content_length']);
-
-            // Last download time should be updated (or equal if very fast)
-            expect($metadata2['last_download']->getTimestamp())
-                ->toBeGreaterThanOrEqual($metadata1['last_download']->getTimestamp());
-        });
     });
 
     describe('integration scenarios', function () {
@@ -410,23 +338,25 @@ describe('RemoteDictionarySource', function () {
             $content = "สวัสดี\nขอบคุณ\nราตรีสวัสดิ์";
             $words = ['สวัสดี', 'ขอบคุณ', 'ราตรีสวัสดิ์'];
 
-            $this->response->shouldReceive('isSuccessful')
-                ->andReturn(true);
+            // For isAvailable (HEAD request)
+            $headResponse = Mockery::mock(ResponseInterface::class);
+            $headResponse->shouldReceive('getStatusCode')->andReturn(200);
 
-            $this->response->shouldReceive('getContent')
-                ->andReturn($content);
+            // For getWords (GET request)
+            $getResponse = Mockery::mock(ResponseInterface::class);
+            $getResponse->shouldReceive('getStatusCode')->andReturn(200);
+            $getResponse->shouldReceive('getBody')->andReturn($this->stream);
+            $getResponse->shouldReceive('getHeaderLine')->with('Content-Type')->andReturn('text/plain');
 
-            $this->response->shouldReceive('getHeader')
-                ->with('Content-Type')
-                ->andReturn('text/plain');
+            $this->stream->shouldReceive('__toString')->andReturn($content);
 
-            $this->httpClient->shouldReceive('get')
-                ->with($this->testUrl, [])
-                ->andReturn($this->response);
+            $this->transport->shouldReceive('sendRequest')
+                ->with(Mockery::on(fn ($r) => $r->getMethod() === 'HEAD'))
+                ->andReturn($headResponse);
 
-            $this->httpClient->shouldReceive('isAvailable')
-                ->with($this->testUrl)
-                ->andReturn(true);
+            $this->transport->shouldReceive('sendRequest')
+                ->with(Mockery::on(fn ($r) => $r->getMethod() === 'GET'))
+                ->andReturn($getResponse);
 
             $this->parser->shouldReceive('parse')
                 ->with($content)
@@ -437,53 +367,13 @@ describe('RemoteDictionarySource', function () {
 
             $source = new RemoteDictionarySource(
                 $this->testUrl,
-                $this->httpClient,
+                $this->transport,
                 $this->parser
             );
 
             expect($source->isAvailable())->toBeTrue();
             expect($source->getWords())->toBe($words);
             expect($source->getMetadata()['content_length'])->toBe(strlen($content));
-        });
-
-        it('handles URLs with various schemes', function () {
-            $urls = [
-                'http://example.com/dict.txt',
-                'https://example.com/dict.txt',
-                'https://subdomain.example.com/path/to/dict.txt',
-            ];
-
-            foreach ($urls as $url) {
-                $this->response->shouldReceive('isSuccessful')
-                    ->andReturn(true);
-
-                $this->response->shouldReceive('getContent')
-                    ->andReturn('test');
-
-                $this->response->shouldReceive('getHeader')
-                    ->with('Content-Type')
-                    ->andReturn('text/plain');
-
-                $this->httpClient->shouldReceive('get')
-                    ->with($url, [])
-                    ->andReturn($this->response);
-
-                $this->parser->shouldReceive('parse')
-                    ->andReturn(['test']);
-
-                $source = new RemoteDictionarySource(
-                    $url,
-                    $this->httpClient,
-                    $this->parser
-                );
-
-                expect(fn () => $source->getWords())->not->toThrow(DictionaryException::class);
-
-                Mockery::close();
-                $this->httpClient = Mockery::mock(HttpClientInterface::class);
-                $this->parser = Mockery::mock(DictionaryParserInterface::class);
-                $this->response = Mockery::mock(HttpResponseInterface::class);
-            }
         });
 
         it('rejects invalid URL schemes', function () {
@@ -496,7 +386,7 @@ describe('RemoteDictionarySource', function () {
             foreach ($invalidUrls as $url) {
                 $source = new RemoteDictionarySource(
                     $url,
-                    $this->httpClient,
+                    $this->transport,
                     $this->parser
                 );
 

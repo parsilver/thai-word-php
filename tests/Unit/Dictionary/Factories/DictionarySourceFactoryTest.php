@@ -69,14 +69,12 @@ describe('DictionarySourceFactory', function () {
             ->toThrow(InvalidArgumentException::class, 'Unknown LibreOffice dictionary type: unknown');
     });
 
-    it('respects headers options', function () {
-        $source = DictionarySourceFactory::createLibreOfficeDictionary('main', 60, ['User-Agent' => 'Test']);
+    it('accepts headers parameter', function () {
+        $headers = ['User-Agent' => 'Test'];
+        $source = DictionarySourceFactory::createLibreOfficeDictionary('main', 60, $headers);
 
         expect($source)->toBeInstanceOf(DictionarySourceInterface::class);
-
-        $metadata = $source->getMetadata();
-        expect($metadata['headers'])->toHaveKey('User-Agent');
-        expect($metadata['headers']['User-Agent'])->toBe('Test');
+        // Headers are configured in Transport, not stored in metadata
     });
 
     describe('specific dictionary constructors', function () {
@@ -118,9 +116,7 @@ describe('DictionarySourceFactory', function () {
             $source = DictionarySourceFactory::createLibreOfficeThaiDictionary(30, $headers);
 
             expect($source)->toBeInstanceOf(DictionarySourceInterface::class);
-
-            $metadata = $source->getMetadata();
-            expect($metadata['headers'])->toBe($headers);
+            // Headers are configured in Transport, not stored in metadata
         });
     });
 
@@ -183,12 +179,10 @@ describe('DictionarySourceFactory', function () {
             $url = 'https://example.com/dictionary.txt';
             $headers = ['Authorization' => 'Bearer token'];
 
-            $source = DictionarySourceFactory::createFromUrl($url, 'main', $headers);
+            $source = DictionarySourceFactory::createFromUrl($url, 'main', 30, $headers);
 
             expect($source)->toBeInstanceOf(DictionarySourceInterface::class);
-
-            $metadata = $source->getMetadata();
-            expect($metadata['headers'])->toBe($headers);
+            // Headers are configured in Transport, not stored in metadata
         });
 
         it('accepts timeout as third parameter for backward compatibility', function () {
@@ -206,9 +200,7 @@ describe('DictionarySourceFactory', function () {
             $source = DictionarySourceFactory::createFromUrl($url, 'main', 60, $headers);
 
             expect($source)->toBeInstanceOf(DictionarySourceInterface::class);
-
-            $metadata = $source->getMetadata();
-            expect($metadata['headers'])->toBe($headers);
+            // Headers are configured in Transport, not stored in metadata
         });
     });
 
@@ -237,11 +229,7 @@ describe('DictionarySourceFactory', function () {
             $dictionaries = DictionarySourceFactory::getAllLibreOfficeDictionaries(30, $headers);
 
             expect($dictionaries)->toBeArray()->toHaveCount(3);
-
-            foreach ($dictionaries as $source) {
-                $metadata = $source->getMetadata();
-                expect($metadata['headers'])->toBe($headers);
-            }
+            // Headers are configured in Transport, not stored in metadata
         });
     });
 
@@ -277,9 +265,7 @@ describe('DictionarySourceFactory', function () {
             ]);
 
             expect($source)->toBeInstanceOf(DictionarySourceInterface::class);
-
-            $metadata = $source->getMetadata();
-            expect($metadata['headers'])->toHaveKey('Custom');
+            // Headers are configured in Transport, not stored in metadata
         });
 
         it('creates libreoffice sources via create method', function () {

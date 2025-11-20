@@ -6,18 +6,17 @@ namespace Farzai\ThaiWord\Dictionary\Sources;
 
 use Farzai\ThaiWord\Contracts\DictionaryParserInterface;
 use Farzai\ThaiWord\Contracts\DictionarySourceInterface;
-use Farzai\ThaiWord\Contracts\HttpClientInterface;
 use Farzai\ThaiWord\Exceptions\DictionaryException;
-use Farzai\ThaiWord\Exceptions\HttpException;
 use Farzai\ThaiWord\Exceptions\SegmentationException;
+use Farzai\Transport\Transport;
+use GuzzleHttp\Psr7\Request;
 
 /**
- * Remote Dictionary Source using Adapter pattern
+ * Remote Dictionary Source using Transport
  *
  * Handles downloading dictionary content from remote URLs
  * and uses a parser to process the content into words.
- * Uses HttpClientInterface for HTTP operations, making
- * HTTP dependencies optional.
+ * Uses farzai/transport for HTTP operations with retry logic.
  */
 class RemoteDictionarySource implements DictionarySourceInterface
 {
@@ -25,9 +24,8 @@ class RemoteDictionarySource implements DictionarySourceInterface
 
     public function __construct(
         private readonly string $url,
-        private readonly HttpClientInterface $httpClient,
-        private readonly DictionaryParserInterface $parser,
-        private readonly array $headers = []
+        private readonly Transport $transport,
+        private readonly DictionaryParserInterface $parser
     ) {}
 
     public function getWords(): array
@@ -39,7 +37,21 @@ class RemoteDictionarySource implements DictionarySourceInterface
 
     public function isAvailable(): bool
     {
-        return $this->httpClient->isAvailable($this->url);
+        // Validate URL format
+        if (! filter_var($this->url, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+
+        try {
+            $request = new Request('HEAD', $this->url);
+            $response = $this->transport->sendRequest($request);
+
+            $statusCode = $response->getStatusCode();
+
+            return $statusCode >= 200 && $statusCode < 400;
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     public function getMetadata(): array
@@ -47,7 +59,6 @@ class RemoteDictionarySource implements DictionarySourceInterface
         return [
             'url' => $this->url,
             'parser_type' => $this->parser->getType(),
-            'headers' => $this->headers,
             'last_download' => $this->metadata['last_download'] ?? null,
             'content_length' => $this->metadata['content_length'] ?? null,
             'content_type' => $this->metadata['content_type'] ?? null,
@@ -72,19 +83,21 @@ class RemoteDictionarySource implements DictionarySourceInterface
         }
 
         try {
-            // Send HTTP GET request
-            $response = $this->httpClient->get($this->url, $this->headers);
+            // Send HTTP GET request (with automatic retry from transport)
+            $request = new Request('GET', $this->url);
+            $response = $this->transport->sendRequest($request);
 
             // Check response status
-            if (! $response->isSuccessful()) {
+            $statusCode = $response->getStatusCode();
+            if ($statusCode < 200 || $statusCode >= 400) {
                 throw new DictionaryException(
-                    "HTTP error {$response->getStatusCode()} when downloading from: {$this->url}",
+                    "HTTP error {$statusCode} when downloading from: {$this->url}",
                     SegmentationException::DICTIONARY_DOWNLOAD_FAILED
                 );
             }
 
             // Get response content
-            $content = $response->getContent();
+            $content = (string) $response->getBody();
 
             if (empty($content)) {
                 throw new DictionaryException(
@@ -97,12 +110,13 @@ class RemoteDictionarySource implements DictionarySourceInterface
             $this->metadata = [
                 'last_download' => new \DateTimeImmutable,
                 'content_length' => strlen($content),
-                'content_type' => $response->getHeader('Content-Type'),
+                'content_type' => $response->getHeaderLine('Content-Type'),
             ];
 
             return $content;
 
-        } catch (HttpException $e) {
+        } catch (\Throwable $e) {
+            // Catch any exceptions from Transport (PSR-18 client exceptions, network errors, etc.)
             throw new DictionaryException(
                 "Failed to download dictionary from: {$this->url}. Error: {$e->getMessage()}",
                 SegmentationException::DICTIONARY_DOWNLOAD_FAILED,
