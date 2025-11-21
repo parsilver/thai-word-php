@@ -865,7 +865,8 @@ class PrepareDictionariesCommand extends Command
     {
         if (! is_dir($this->dictionariesPath)) {
             // Create directory with read/write/execute permissions for owner and group
-            if (! mkdir($this->dictionariesPath, 0755, true)) {
+            // Suppress warnings as we handle errors via return value check
+            if (! @mkdir($this->dictionariesPath, 0755, true) && ! is_dir($this->dictionariesPath)) {
                 throw new \RuntimeException("Cannot create dictionaries directory: {$this->dictionariesPath}");
             }
             $this->io->note("Created dictionaries directory: {$this->dictionariesPath}");

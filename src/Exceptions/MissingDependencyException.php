@@ -18,9 +18,9 @@ class MissingDependencyException extends SegmentationException
     public static function forHttpClient(): self
     {
         return new self(
-            "HTTP client dependencies are required for downloading remote dictionaries.\n".
-            "Please install the required packages:\n\n".
-            "  composer require psr/http-client psr/http-factory php-http/discovery guzzlehttp/guzzle\n\n".
+            "HTTP transport library is required for downloading remote dictionaries.\n".
+            "Please install the required package:\n\n".
+            "  composer require farzai/transport\n\n".
             'Alternatively, use local dictionary files to avoid this dependency.',
             self::CONFIG_MISSING_REQUIRED
         );
