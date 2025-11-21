@@ -4,7 +4,14 @@ use Farzai\ThaiWord\Contracts\DictionaryParserInterface;
 use Farzai\ThaiWord\Dictionary\Sources\RemoteDictionarySource;
 use Farzai\ThaiWord\Exceptions\DictionaryException;
 use Farzai\ThaiWord\Exceptions\SegmentationException;
+use Farzai\Transport\Exceptions\ClientException;
+use Farzai\Transport\Exceptions\NetworkException;
+use Farzai\Transport\Exceptions\RetryExhaustedException;
+use Farzai\Transport\Exceptions\ServerException;
+use Farzai\Transport\Exceptions\TimeoutException;
+use Farzai\Transport\Retry\RetryContext;
 use Farzai\Transport\Transport;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 
@@ -184,6 +191,152 @@ describe('RemoteDictionarySource', function () {
                 $this->parser = Mockery::mock(DictionaryParserInterface::class);
                 $this->response = Mockery::mock(ResponseInterface::class);
                 $this->stream = Mockery::mock(StreamInterface::class);
+            }
+        });
+    });
+
+    describe('Transport exception handling', function () {
+        it('wraps ClientException (4xx errors) in DictionaryException', function () {
+            $mockRequest = Mockery::mock(RequestInterface::class);
+            $mockResponse = Mockery::mock(ResponseInterface::class);
+            $mockResponse->shouldReceive('getStatusCode')->andReturn(400);
+
+            $clientException = new ClientException('Bad Request', $mockRequest, $mockResponse);
+
+            $this->transport->shouldReceive('sendRequest')
+                ->once()
+                ->andThrow($clientException);
+
+            $source = new RemoteDictionarySource(
+                $this->testUrl,
+                $this->transport,
+                $this->parser
+            );
+
+            try {
+                $source->getWords();
+                expect(false)->toBeTrue(); // Should not reach here
+            } catch (DictionaryException $e) {
+                expect($e->getMessage())
+                    ->toContain('Client error')
+                    ->toContain('HTTP 400')
+                    ->toContain($this->testUrl);
+                expect($e->getCode())->toBe(SegmentationException::DICTIONARY_DOWNLOAD_FAILED);
+                expect($e->getPrevious())->toBe($clientException);
+            }
+        });
+
+        it('wraps ServerException (5xx errors) in DictionaryException', function () {
+            $mockRequest = Mockery::mock(RequestInterface::class);
+            $mockResponse = Mockery::mock(ResponseInterface::class);
+            $mockResponse->shouldReceive('getStatusCode')->andReturn(500);
+
+            $serverException = new ServerException('Internal Server Error', $mockRequest, $mockResponse);
+
+            $this->transport->shouldReceive('sendRequest')
+                ->once()
+                ->andThrow($serverException);
+
+            $source = new RemoteDictionarySource(
+                $this->testUrl,
+                $this->transport,
+                $this->parser
+            );
+
+            try {
+                $source->getWords();
+                expect(false)->toBeTrue(); // Should not reach here
+            } catch (DictionaryException $e) {
+                expect($e->getMessage())
+                    ->toContain('Server error')
+                    ->toContain('HTTP 500')
+                    ->toContain($this->testUrl);
+                expect($e->getCode())->toBe(SegmentationException::DICTIONARY_DOWNLOAD_FAILED);
+                expect($e->getPrevious())->toBe($serverException);
+            }
+        });
+
+        it('wraps NetworkException in DictionaryException', function () {
+            $mockRequest = Mockery::mock(RequestInterface::class);
+            $networkException = new NetworkException('Connection refused', $mockRequest);
+
+            $this->transport->shouldReceive('sendRequest')
+                ->once()
+                ->andThrow($networkException);
+
+            $source = new RemoteDictionarySource(
+                $this->testUrl,
+                $this->transport,
+                $this->parser
+            );
+
+            try {
+                $source->getWords();
+                expect(false)->toBeTrue(); // Should not reach here
+            } catch (DictionaryException $e) {
+                expect($e->getMessage())
+                    ->toContain('Network error')
+                    ->toContain($this->testUrl)
+                    ->toContain('Connection refused');
+                expect($e->getCode())->toBe(SegmentationException::DICTIONARY_DOWNLOAD_FAILED);
+                expect($e->getPrevious())->toBe($networkException);
+            }
+        });
+
+        it('wraps TimeoutException in DictionaryException', function () {
+            $mockRequest = Mockery::mock(RequestInterface::class);
+            $timeoutException = new TimeoutException('Request timed out after 30 seconds', $mockRequest, 30);
+
+            $this->transport->shouldReceive('sendRequest')
+                ->once()
+                ->andThrow($timeoutException);
+
+            $source = new RemoteDictionarySource(
+                $this->testUrl,
+                $this->transport,
+                $this->parser
+            );
+
+            try {
+                $source->getWords();
+                expect(false)->toBeTrue(); // Should not reach here
+            } catch (DictionaryException $e) {
+                expect($e->getMessage())
+                    ->toContain('Timeout')
+                    ->toContain($this->testUrl)
+                    ->toContain('Request timed out');
+                expect($e->getCode())->toBe(SegmentationException::DICTIONARY_DOWNLOAD_FAILED);
+                expect($e->getPrevious())->toBe($timeoutException);
+            }
+        });
+
+        it('wraps RetryExhaustedException in DictionaryException', function () {
+            // Mock RetryExhaustedException - can't easily create one due to readonly properties
+            // so we'll use a mock that simulates the exception being thrown
+            $retryException = Mockery::mock(RetryExhaustedException::class);
+            $retryException->shouldReceive('getMessage')->andReturn('Failed after retries');
+            $retryException->shouldReceive('getAttempts')->andReturn(3);
+
+            $this->transport->shouldReceive('sendRequest')
+                ->once()
+                ->andThrow($retryException);
+
+            $source = new RemoteDictionarySource(
+                $this->testUrl,
+                $this->transport,
+                $this->parser
+            );
+
+            try {
+                $source->getWords();
+                expect(false)->toBeTrue(); // Should not reach here
+            } catch (DictionaryException $e) {
+                expect($e->getMessage())
+                    ->toContain('Download failed after')
+                    ->toContain('attempts')
+                    ->toContain($this->testUrl);
+                expect($e->getCode())->toBe(SegmentationException::DICTIONARY_DOWNLOAD_FAILED);
+                expect($e->getPrevious())->toBe($retryException);
             }
         });
     });

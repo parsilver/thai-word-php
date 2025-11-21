@@ -314,7 +314,12 @@ describe('PrepareDictionariesCommand', function () {
 
             expect($result)->toBeString();
             expect($result)->toContain($relativePath);
-            expect(str_starts_with($result, '/'))->toBeTrue();
+
+            // Cross-platform absolute path check
+            // Unix: starts with /
+            // Windows: starts with drive letter like C:\ or D:\
+            $isAbsolute = str_starts_with($result, '/') || preg_match('/^[A-Z]:\\\\/i', $result);
+            expect($isAbsolute)->toBeTrue();
         });
     });
 

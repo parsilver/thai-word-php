@@ -233,6 +233,65 @@ describe('DictionarySourceFactory', function () {
         });
     });
 
+    describe('isTransportAvailable', function () {
+        it('returns true when TransportBuilder is available', function () {
+            $isAvailable = DictionarySourceFactory::isTransportAvailable();
+
+            expect($isAvailable)->toBeTrue();
+        });
+    });
+
+    describe('parser type validation in createFromUrl', function () {
+        it('throws exception for unknown parser type', function () {
+            $url = 'https://example.com/dictionary.txt';
+
+            expect(fn () => DictionarySourceFactory::createFromUrl($url, 'invalid_parser_type'))
+                ->toThrow(InvalidArgumentException::class, 'Unknown parser type: invalid_parser_type');
+        });
+
+        it('supports all valid parser types', function () {
+            $url = 'https://example.com/dictionary.txt';
+            $validTypes = ['plain', 'main', 'typos_translit', 'typos_common'];
+
+            foreach ($validTypes as $type) {
+                $source = DictionarySourceFactory::createFromUrl($url, $type);
+                expect($source)->toBeInstanceOf(DictionarySourceInterface::class);
+            }
+        });
+    });
+
+    describe('Transport configuration', function () {
+        it('creates sources with custom timeout', function () {
+            $url = 'https://example.com/dictionary.txt';
+
+            $source = DictionarySourceFactory::createFromUrl($url, 'main', 120);
+
+            expect($source)->toBeInstanceOf(DictionarySourceInterface::class);
+            // Timeout is configured in Transport, so instance creation validates the config
+        });
+
+        it('creates sources with custom headers', function () {
+            $url = 'https://example.com/dictionary.txt';
+            $headers = [
+                'Authorization' => 'Bearer secret-token',
+                'X-Custom-Header' => 'custom-value',
+            ];
+
+            $source = DictionarySourceFactory::createFromUrl($url, 'main', 30, $headers);
+
+            expect($source)->toBeInstanceOf(DictionarySourceInterface::class);
+            // Headers are configured in Transport, so instance creation validates the config
+        });
+
+        it('uses default timeout when not specified', function () {
+            $url = 'https://example.com/dictionary.txt';
+
+            $source = DictionarySourceFactory::createFromUrl($url);
+
+            expect($source)->toBeInstanceOf(DictionarySourceInterface::class);
+        });
+    });
+
     describe('create method integration', function () {
         it('creates file source via create method', function () {
             $filePath = __DIR__.'/../../../../resources/dictionaries/sample.txt';
