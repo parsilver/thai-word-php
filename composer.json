@@ -31,15 +31,18 @@
         "php": "^8.4"
     },
     "require-dev": {
-        "symfony/console": "^7.0",
-        "pestphp/pest": "^4.1",
+        "farzai/transport": "^2.1",
+        "guzzlehttp/guzzle": "^7.10",
         "laravel/pint": "^1.0",
+        "mockery/mockery": "^1.6",
+        "pestphp/pest": "^4.1",
         "spatie/ray": "^1.28",
-        "farzai/transport": "^1.0",
-        "mockery/mockery": "^1.6"
+        "symfony/console": "^7.0"
     },
     "suggest": {
-        "farzai/transport": "Required for downloading remote dictionaries from URLs"
+        "farzai/transport": "Required for downloading remote dictionaries from URLs",
+        "guzzlehttp/guzzle": "PSR-18 HTTP client for transport (popular, widely used)",
+        "symfony/http-client": "PSR-18 HTTP client for transport (modern, async support)"
     },
     "autoload": {
         "psr-4": {

@@ -10,6 +10,8 @@ use Farzai\ThaiWord\Dictionary\Parsers\LibreOfficeParser;
 use Farzai\ThaiWord\Dictionary\Parsers\PlainTextParser;
 use Farzai\ThaiWord\Dictionary\Sources\FileDictionarySource;
 use Farzai\ThaiWord\Dictionary\Sources\RemoteDictionarySource;
+use Farzai\Transport\Retry\ExponentialBackoffStrategy;
+use Farzai\Transport\Retry\RetryCondition;
 use Farzai\Transport\Transport;
 use Farzai\Transport\TransportBuilder;
 use InvalidArgumentException;
@@ -200,20 +202,27 @@ class DictionarySourceFactory
             );
         }
 
-        $transport = TransportBuilder::make()->build();
+        // Build transport with smart retry configuration
+        $builder = TransportBuilder::make()
+            ->withTimeout($timeout)
+            ->withHeaders(array_merge([
+                'User-Agent' => 'ThaiWord-Dictionary-Downloader/2.0',
+                'Accept' => 'text/plain, text/*, */*',
+            ], $headers))
+            ->withRetries(
+                maxRetries: 5,
+                strategy: new ExponentialBackoffStrategy(
+                    baseDelayMs: 1000,      // Start with 1 second
+                    multiplier: 2.0,         // Double each retry (1s, 2s, 4s, 8s, 16s)
+                    maxDelayMs: 30000,       // Cap at 30 seconds
+                    useJitter: true          // Add randomness to prevent thundering herd
+                ),
+                condition: RetryCondition::default()
+                // Retry only on network errors and server errors (5xx)
+                // Don't retry on client errors (4xx) as they won't succeed
+            );
 
-        // Configure timeout
-        $transport->setTimeout($timeout);
-
-        // Configure retry logic (3 attempts)
-        $transport->setRetries(3);
-
-        // Add custom headers if provided
-        if (! empty($headers)) {
-            $transport->setHeaders($headers);
-        }
-
-        return $transport;
+        return $builder->build();
     }
 
     /**

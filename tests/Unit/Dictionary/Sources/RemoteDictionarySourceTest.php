@@ -7,7 +7,6 @@ use Farzai\ThaiWord\Exceptions\SegmentationException;
 use Farzai\Transport\Transport;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
-use RuntimeException;
 
 describe('RemoteDictionarySource', function () {
     beforeEach(function () {

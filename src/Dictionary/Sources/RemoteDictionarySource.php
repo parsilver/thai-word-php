@@ -8,8 +8,14 @@ use Farzai\ThaiWord\Contracts\DictionaryParserInterface;
 use Farzai\ThaiWord\Contracts\DictionarySourceInterface;
 use Farzai\ThaiWord\Exceptions\DictionaryException;
 use Farzai\ThaiWord\Exceptions\SegmentationException;
+use Farzai\Transport\Exceptions\ClientException;
+use Farzai\Transport\Exceptions\NetworkException;
+use Farzai\Transport\Exceptions\RetryExhaustedException;
+use Farzai\Transport\Exceptions\ServerException;
+use Farzai\Transport\Exceptions\TimeoutException;
+use Farzai\Transport\RequestBuilder;
 use Farzai\Transport\Transport;
-use GuzzleHttp\Psr7\Request;
+use Psr\Http\Message\ResponseInterface;
 
 /**
  * Remote Dictionary Source using Transport
@@ -37,18 +43,17 @@ class RemoteDictionarySource implements DictionarySourceInterface
 
     public function isAvailable(): bool
     {
-        // Validate URL format
         if (! filter_var($this->url, FILTER_VALIDATE_URL)) {
             return false;
         }
 
         try {
-            $request = new Request('HEAD', $this->url);
+            $request = RequestBuilder::head($this->url)->build();
             $response = $this->transport->sendRequest($request);
 
             $statusCode = $response->getStatusCode();
 
-            return $statusCode >= 200 && $statusCode < 400;
+            return $statusCode >= 200 && $statusCode < 300;
         } catch (\Throwable) {
             return false;
         }
@@ -74,22 +79,16 @@ class RemoteDictionarySource implements DictionarySourceInterface
      */
     private function downloadContent(): string
     {
-        // Validate URL
-        if (! filter_var($this->url, FILTER_VALIDATE_URL)) {
-            throw new DictionaryException(
-                "Invalid URL provided: {$this->url}",
-                SegmentationException::DICTIONARY_INVALID_SOURCE
-            );
-        }
+        $this->validateUrl();
 
         try {
             // Send HTTP GET request (with automatic retry from transport)
-            $request = new Request('GET', $this->url);
+            $request = RequestBuilder::get($this->url)->build();
             $response = $this->transport->sendRequest($request);
 
             // Check response status
             $statusCode = $response->getStatusCode();
-            if ($statusCode < 200 || $statusCode >= 400) {
+            if ($statusCode < 200 || $statusCode >= 300) {
                 throw new DictionaryException(
                     "HTTP error {$statusCode} when downloading from: {$this->url}",
                     SegmentationException::DICTIONARY_DOWNLOAD_FAILED
@@ -106,22 +105,74 @@ class RemoteDictionarySource implements DictionarySourceInterface
                 );
             }
 
-            // Store metadata
-            $this->metadata = [
-                'last_download' => new \DateTimeImmutable,
-                'content_length' => strlen($content),
-                'content_type' => $response->getHeaderLine('Content-Type'),
-            ];
+            $this->storeMetadata($response, $content);
 
             return $content;
 
+        } catch (ClientException $e) {
+            throw new DictionaryException(
+                "Client error (HTTP {$e->getStatusCode()}) downloading from {$this->url}: {$e->getMessage()}",
+                SegmentationException::DICTIONARY_DOWNLOAD_FAILED,
+                $e
+            );
+        } catch (ServerException $e) {
+            throw new DictionaryException(
+                "Server error (HTTP {$e->getStatusCode()}) downloading from {$this->url}: {$e->getMessage()}",
+                SegmentationException::DICTIONARY_DOWNLOAD_FAILED,
+                $e
+            );
+        } catch (NetworkException $e) {
+            throw new DictionaryException(
+                "Network error downloading from {$this->url}: {$e->getMessage()}",
+                SegmentationException::DICTIONARY_DOWNLOAD_FAILED,
+                $e
+            );
+        } catch (TimeoutException $e) {
+            throw new DictionaryException(
+                "Timeout downloading from {$this->url}: {$e->getMessage()}",
+                SegmentationException::DICTIONARY_DOWNLOAD_FAILED,
+                $e
+            );
+        } catch (RetryExhaustedException $e) {
+            throw new DictionaryException(
+                "Download failed after {$e->getAttempts()} attempts from {$this->url}: {$e->getMessage()}",
+                SegmentationException::DICTIONARY_DOWNLOAD_FAILED,
+                $e
+            );
         } catch (\Throwable $e) {
-            // Catch any exceptions from Transport (PSR-18 client exceptions, network errors, etc.)
+            // Generic catch-all for any other exceptions (PSR-18 client exceptions, etc.)
             throw new DictionaryException(
                 "Failed to download dictionary from: {$this->url}. Error: {$e->getMessage()}",
                 SegmentationException::DICTIONARY_DOWNLOAD_FAILED,
                 $e
             );
         }
+    }
+
+    /**
+     * Validate the URL format
+     *
+     * @throws DictionaryException If URL is invalid
+     */
+    private function validateUrl(): void
+    {
+        if (! filter_var($this->url, FILTER_VALIDATE_URL)) {
+            throw new DictionaryException(
+                "Invalid URL provided: {$this->url}",
+                SegmentationException::DICTIONARY_INVALID_SOURCE
+            );
+        }
+    }
+
+    /**
+     * Store metadata from the response
+     */
+    private function storeMetadata(ResponseInterface $response, string $content): void
+    {
+        $this->metadata = [
+            'last_download' => new \DateTimeImmutable,
+            'content_length' => strlen($content),
+            'content_type' => $response->getHeaderLine('Content-Type'),
+        ];
     }
 }
