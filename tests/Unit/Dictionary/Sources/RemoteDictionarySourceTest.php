@@ -9,7 +9,6 @@ use Farzai\Transport\Exceptions\NetworkException;
 use Farzai\Transport\Exceptions\RetryExhaustedException;
 use Farzai\Transport\Exceptions\ServerException;
 use Farzai\Transport\Exceptions\TimeoutException;
-use Farzai\Transport\Retry\RetryContext;
 use Farzai\Transport\Transport;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
