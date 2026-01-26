@@ -37,7 +37,7 @@
         "mockery/mockery": "^1.6",
         "pestphp/pest": "^4.1",
         "spatie/ray": "^1.28",
-        "symfony/console": "^7.0"
+        "symfony/console": "^8.0"
     },
     "suggest": {
         "farzai/transport": "Required for downloading remote dictionaries from URLs",
