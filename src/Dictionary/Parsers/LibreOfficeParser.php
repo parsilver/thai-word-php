@@ -113,8 +113,9 @@ class LibreOfficeParser implements DictionaryParserInterface
 
             case self::TYPE_MAIN:
             default:
-                // Remove phonetic annotations (e.g., "/ph:pronunciation")
-                $word = preg_replace('/\/ph:.*$/', '', $word) ?? '';
+                // Remove Hunspell morphological fields such as "/ph:pronunciation"
+                // or " ph:misspelling" (th_TH.dic uses the space-separated form)
+                $word = preg_replace('/(\/|\s+)[a-z]{2}:.*$/u', '', $word) ?? '';
                 break;
         }
 

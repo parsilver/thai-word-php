@@ -14,19 +14,15 @@ use Farzai\ThaiWord\Exceptions\SegmentationException;
 use Farzai\ThaiWord\Suggestions\Strategies\LevenshteinSuggestionStrategy;
 
 /**
- * Optimized Thai Segmenter with enhanced performance features
+ * Thai Segmenter
  *
- * This segmenter provides significant performance improvements:
- * - Automatic selection of optimized components
- * - Built-in caching and memory management
- * - Batch processing capabilities
- * - Performance monitoring and statistics
+ * Wires a dictionary, a segmentation algorithm and an optional suggestion
+ * strategy together, with a result cache for repeated texts, batch
+ * processing and performance statistics.
  *
- * Performance characteristics:
- * - 3-5x faster processing speed
- * - 50% lower memory usage
- * - Better scalability for large texts
- * - Adaptive optimization based on text characteristics
+ * Without an explicit dictionary it loads the bundled LibreOffice dictionary,
+ * then the remote LibreOffice dictionary, and as a last resort a small
+ * built-in word list; isUsingFallbackDictionary() reports the last case.
  */
 class ThaiSegmenter implements SegmenterInterface
 {
@@ -76,6 +72,12 @@ class ThaiSegmenter implements SegmenterInterface
      * Maximum cache size
      */
     private const MAX_SEGMENT_CACHE_SIZE = 500;
+
+    /**
+     * Whether the built-in fallback word list was loaded because no real
+     * dictionary could be loaded
+     */
+    private bool $usingFallbackDictionary = false;
 
     public function __construct(
         ?DictionaryInterface $dictionary = null,
@@ -131,7 +133,6 @@ class ThaiSegmenter implements SegmenterInterface
                 }
             }
 
-            // Determine processing strategy based on text length
             $result = $this->processText($text);
 
             // Cache result if enabled
@@ -276,6 +277,15 @@ class ThaiSegmenter implements SegmenterInterface
     }
 
     /**
+     * Whether the segmenter runs on the small built-in word list because
+     * neither the bundled nor the remote dictionary could be loaded
+     */
+    public function isUsingFallbackDictionary(): bool
+    {
+        return $this->usingFallbackDictionary;
+    }
+
+    /**
      * Get algorithm instance
      */
     public function getAlgorithm(): AlgorithmInterface
@@ -406,96 +416,20 @@ class ThaiSegmenter implements SegmenterInterface
     }
 
     /**
-     * Process text with adaptive strategy selection
+     * Segment the whole text in one pass
+     *
+     * The text is never cut into chunks: Thai has no reliable word boundary
+     * to cut at, and a cut in the middle of a word changes the result.
      */
     private function processText(string $text): array
     {
-        $textLength = mb_strlen($text, 'UTF-8');
-
-        // Choose processing strategy based on text length
-        if ($textLength <= 50) {
-            return $this->processShortText($text);
-        } elseif ($textLength <= 500) {
-            return $this->processMediumText($text);
-        } else {
-            return $this->processLongText($text);
-        }
-    }
-
-    /**
-     * Process short text (optimized for low latency)
-     */
-    private function processShortText(string $text): array
-    {
-        return $this->algorithm->process($text, $this->dictionary);
-    }
-
-    /**
-     * Process medium text (balanced approach)
-     */
-    private function processMediumText(string $text): array
-    {
-        // Direct processing with memory optimization
         $result = $this->algorithm->process($text, $this->dictionary);
 
-        // Optimize memory if needed
         if ($this->shouldOptimizeMemory()) {
             $this->optimizeMemory();
         }
 
         return $result;
-    }
-
-    /**
-     * Process long text (chunked processing for memory efficiency)
-     */
-    private function processLongText(string $text): array
-    {
-        $chunkSize = 1000; // Process in 1000 character chunks
-        $textLength = mb_strlen($text, 'UTF-8');
-        $result = [];
-
-        for ($position = 0; $position < $textLength; $position += $chunkSize) {
-            $remainingLength = $textLength - $position;
-            $currentChunkSize = min($chunkSize, $remainingLength);
-
-            // Extend chunk to word boundary to avoid splitting words
-            if ($position + $currentChunkSize < $textLength) {
-                $currentChunkSize = $this->extendToWordBoundary($text, $position + $currentChunkSize) - $position;
-            }
-
-            $chunk = mb_substr($text, $position, $currentChunkSize, 'UTF-8');
-            $chunkResult = $this->algorithm->process($chunk, $this->dictionary);
-
-            $result = array_merge($result, $chunkResult);
-
-            // Optimize memory after each chunk
-            if ($position % ($chunkSize * 3) === 0) {
-                $this->optimizeMemory();
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * Extend chunk to word boundary to avoid splitting words
-     */
-    private function extendToWordBoundary(string $text, int $position): int
-    {
-        $textLength = mb_strlen($text, 'UTF-8');
-        $maxExtension = 20; // Don't extend more than 20 characters
-
-        for ($i = 0; $i < $maxExtension && $position + $i < $textLength; $i++) {
-            $char = mb_substr($text, $position + $i, 1, 'UTF-8');
-
-            // Stop at whitespace or punctuation
-            if (preg_match('/[\s\p{P}]/u', $char)) {
-                return $position + $i;
-            }
-        }
-
-        return min($position + $maxExtension, $textLength);
     }
 
     /**
@@ -625,5 +559,7 @@ class ThaiSegmenter implements SegmenterInterface
         foreach ($basicWords as $word) {
             $this->dictionary->add($word);
         }
+
+        $this->usingFallbackDictionary = true;
     }
 }

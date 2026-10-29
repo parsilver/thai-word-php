@@ -136,9 +136,9 @@ This library segments Thai text into words and provides intelligent word suggest
 ### Step 2: Dictionary Loading (Automatic)
 The library automatically loads Thai words using several sources with intelligent fallback:
 
-- **LibreOffice Thai Dictionary**: Downloads from official LibreOffice repository (primary source)
-- **Local Dictionary Files**: Falls back to local dictionary files if available
-- **Basic Dictionary**: Uses built-in common Thai words as last resort
+- **Bundled Dictionary File**: `resources/dictionaries/libreoffice-combined.txt`, shipped with the package (primary source)
+- **LibreOffice Thai Dictionary**: Downloaded from the official LibreOffice repository if the bundled file cannot be read
+- **Basic Dictionary**: A few dozen built-in common words as a last resort. Segmentation quality is poor in this mode; check `$segmenter->isUsingFallbackDictionary()` to detect it
 
 The dictionary is stored in a `HashDictionary` with **O(1) lookup performance**.
 
@@ -146,10 +146,11 @@ The dictionary is stored in a `HashDictionary` with **O(1) lookup performance**.
 The `LongestMatchingStrategy` algorithm processes text intelligently:
 
 **Character Classification**:
-- **Thai characters**: Unicode range 0x0E00-0x0E7F for fast detection
-- **English words**: Handled as complete word units  
-- **Numbers**: Processed as number sequences (with decimals, commas)
-- **Punctuation**: Handled appropriately with whitespace normalization
+- **Thai characters**: Unicode range 0x0E00-0x0E7F, matched against the dictionary
+- **Unknown Thai text**: Emitted one character cluster at a time (a consonant with its vowels and tone marks), so marks such as `่` or `์` never become tokens on their own
+- **English words**: Handled as complete word units; a trailing period is split off (`example.com.` gives `example.com`, `.`)
+- **Numbers**: Arabic and Thai digit runs (`1,000.50`, `๒๕๖๙`) stay together
+- **Whitespace**: Any run of whitespace, including line breaks, becomes a single `' '` token
 
 ### Step 4: Longest Matching Algorithm
 ```
@@ -197,9 +198,8 @@ Output: [
 The library includes several optimizations:
 
 - **Caching**: Recently segmented texts are cached for faster repeat processing
-- **Batch Processing**: Large texts are processed in chunks to manage memory
+- **Linear Processing**: The text is split into characters once, so cost grows linearly with its length (about 0.3 s for 200,000 characters). Memory is roughly 170 bytes per input character during a call
 - **Memory Management**: Automatic garbage collection and memory optimization
-- **Adaptive Processing**: Different strategies for short, medium, and long texts
 - **Suggestion Caching**: Distance calculations cached for repeated similarity checks
 
 ### Step 7: Mixed Content Handling
@@ -207,7 +207,7 @@ The library includes several optimizations:
 ```php
 $segmenter = new ThaiSegmenter();
 $result = $segmenter->segment('ผมใช้ Computer ทำงาน');
-// Result: ['ผม', 'ใช้', 'Computer', 'ทำงาน']
+// Result: ['ผม', 'ใช้', ' ', 'Computer', ' ', 'ทำงาน']
 ```
 
 - Thai words are processed with dictionary lookup
@@ -217,17 +217,15 @@ $result = $segmenter->segment('ผมใช้ Computer ทำงาน');
 ### Key Components
 
 1. **ThaiSegmenter**: Main orchestrator with performance monitoring and suggestion integration
-2. **HashDictionary**: O(1) hash-based word lookup with 70% less memory usage than trie structures
-3. **LongestMatchingStrategy**: Optimized algorithm with character classification
+2. **HashDictionary**: O(1) hash-based word lookup
+3. **LongestMatchingStrategy**: Longest matching that respects Thai character clusters
 4. **LevenshteinSuggestionStrategy**: Unicode-aware word suggestion algorithm with caching
 5. **DictionaryLoaderService**: Handles loading from files, URLs, and remote sources
 
 ### Performance Features
 
-- **3-5x faster** processing speed with optimized algorithms
-- **50% lower memory** usage with hash-based dictionary
+- **Linear-time segmentation** with O(1) dictionary lookups
 - **Intelligent suggestions** with configurable accuracy thresholds
-- **Automatic optimization** based on text characteristics  
 - **Built-in statistics** for performance monitoring
 
 ### Real Usage Examples
