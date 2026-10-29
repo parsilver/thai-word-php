@@ -37,7 +37,7 @@ class Application extends BaseApplication
         ];
 
         foreach ($commands as $command) {
-            $this->add($command);
+            $this->addCommand($command);
         }
     }
 

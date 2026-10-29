@@ -37,11 +37,12 @@
         "mockery/mockery": "^1.6",
         "pestphp/pest": "^4.1",
         "spatie/ray": "^1.28",
-        "symfony/console": "^7.0"
+        "symfony/console": "^7.4 || ^8.0"
     },
     "suggest": {
         "farzai/transport": "Required for downloading remote dictionaries from URLs",
         "guzzlehttp/guzzle": "PSR-18 HTTP client for transport (popular, widely used)",
+        "symfony/console": "Required for the bin/thai-word CLI (dict:prepare)",
         "symfony/http-client": "PSR-18 HTTP client for transport (modern, async support)"
     },
     "autoload": {
@@ -71,6 +72,5 @@
             "phpstan/extension-installer": true
         }
     },
-    "minimum-stability": "dev",
-    "prefer-stable": true
+    "minimum-stability": "stable"
 }

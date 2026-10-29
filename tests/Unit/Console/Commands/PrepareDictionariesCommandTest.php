@@ -10,7 +10,7 @@ describe('PrepareDictionariesCommand', function () {
     beforeEach(function () {
         $this->application = new Application;
         $this->command = new PrepareDictionariesCommand;
-        $this->application->add($this->command);
+        $this->application->addCommand($this->command);
         $this->commandTester = new CommandTester($this->command);
         $this->tempDir = sys_get_temp_dir().'/thai-word-test-'.uniqid();
         mkdir($this->tempDir, 0777, true);
@@ -108,7 +108,7 @@ describe('PrepareDictionariesCommand', function () {
 
                 // Command should exit with success or failure code
                 expect($exitCode)->toBeIn([0, 1]);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected to fail if HTTP client not available
                 expect($e->getMessage())->toBeString();
             }
@@ -122,7 +122,7 @@ describe('PrepareDictionariesCommand', function () {
                 ]);
 
                 expect($exitCode)->toBeIn([0, 1]);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 expect($e->getMessage())->toBeString();
             }
         })->skip('Requires network and HTTP client dependencies');
@@ -135,7 +135,7 @@ describe('PrepareDictionariesCommand', function () {
                 ]);
 
                 expect($exitCode)->toBeIn([0, 1]);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 expect($e->getMessage())->toBeString();
             }
         })->skip('Requires network and HTTP client dependencies');
@@ -148,7 +148,7 @@ describe('PrepareDictionariesCommand', function () {
                 ]);
 
                 expect($exitCode)->toBeIn([0, 1]);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 expect($e->getMessage())->toBeString();
             }
         })->skip('Requires network and HTTP client dependencies');
@@ -160,7 +160,7 @@ describe('PrepareDictionariesCommand', function () {
                 ]);
 
                 expect($exitCode)->toBeIn([0, 1]);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 expect($e->getMessage())->toBeString();
             }
         })->skip('Requires network and HTTP client dependencies');
@@ -175,7 +175,7 @@ describe('PrepareDictionariesCommand', function () {
 
                 $output = $this->commandTester->getDisplay();
                 expect($output)->toBeString();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 expect($e->getMessage())->toBeString();
             }
         })->skip('Requires network and HTTP client dependencies');
@@ -189,7 +189,7 @@ describe('PrepareDictionariesCommand', function () {
                 $output = $this->commandTester->getDisplay();
                 // Output should contain progress information
                 expect($output)->toBeString()->not->toBeEmpty();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 expect($e->getMessage())->toBeString();
             }
         })->skip('Requires network and HTTP client dependencies');
@@ -234,7 +234,7 @@ describe('PrepareDictionariesCommand', function () {
 
                 $output = $this->commandTester->getDisplay();
                 expect($output)->toBeString();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 expect($e->getMessage())->toBeString();
             }
         })->skip('Requires network and HTTP client dependencies');
@@ -244,7 +244,6 @@ describe('PrepareDictionariesCommand', function () {
         it('formats bytes correctly', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('formatFileSize');
-            $method->setAccessible(true);
 
             expect($method->invoke($this->command, 500))->toBe('500 B');
         });
@@ -252,7 +251,6 @@ describe('PrepareDictionariesCommand', function () {
         it('formats kilobytes correctly', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('formatFileSize');
-            $method->setAccessible(true);
 
             expect($method->invoke($this->command, 1024))->toBe('1 KB');
             expect($method->invoke($this->command, 2048))->toBe('2 KB');
@@ -261,7 +259,6 @@ describe('PrepareDictionariesCommand', function () {
         it('formats megabytes correctly', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('formatFileSize');
-            $method->setAccessible(true);
 
             expect($method->invoke($this->command, 1048576))->toBe('1 MB');
             expect($method->invoke($this->command, 5242880))->toBe('5 MB');
@@ -270,7 +267,6 @@ describe('PrepareDictionariesCommand', function () {
         it('formats gigabytes correctly', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('formatFileSize');
-            $method->setAccessible(true);
 
             expect($method->invoke($this->command, 1073741824))->toBe('1 GB');
         });
@@ -278,7 +274,6 @@ describe('PrepareDictionariesCommand', function () {
         it('handles fractional sizes', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('formatFileSize');
-            $method->setAccessible(true);
 
             $result = $method->invoke($this->command, 1536);
             expect($result)->toBe('1.5 KB');
@@ -287,7 +282,6 @@ describe('PrepareDictionariesCommand', function () {
         it('rounds to 2 decimal places', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('formatFileSize');
-            $method->setAccessible(true);
 
             $result = $method->invoke($this->command, 1555);
             expect($result)->toMatch('/^\d+\.\d{1,2} [A-Z]+$/');
@@ -298,7 +292,6 @@ describe('PrepareDictionariesCommand', function () {
         it('returns absolute paths unchanged', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('resolveDirectoryPath');
-            $method->setAccessible(true);
 
             $absolutePath = '/absolute/path/to/dir';
             expect($method->invoke($this->command, $absolutePath))->toBe($absolutePath);
@@ -307,7 +300,6 @@ describe('PrepareDictionariesCommand', function () {
         it('converts relative paths to absolute', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('resolveDirectoryPath');
-            $method->setAccessible(true);
 
             $relativePath = 'resources/dictionaries';
             $result = $method->invoke($this->command, $relativePath);
@@ -327,7 +319,6 @@ describe('PrepareDictionariesCommand', function () {
         it('merges multiple dictionaries', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('mergeDictionaries');
-            $method->setAccessible(true);
 
             $dictionaries = [
                 'main' => ['word1', 'word2'],
@@ -344,7 +335,6 @@ describe('PrepareDictionariesCommand', function () {
         it('removes duplicate words', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('mergeDictionaries');
-            $method->setAccessible(true);
 
             $dictionaries = [
                 'main' => ['word1', 'word2', 'duplicate'],
@@ -361,7 +351,6 @@ describe('PrepareDictionariesCommand', function () {
         it('sorts words alphabetically', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('mergeDictionaries');
-            $method->setAccessible(true);
 
             $dictionaries = [
                 'main' => ['zebra', 'apple'],
@@ -376,7 +365,6 @@ describe('PrepareDictionariesCommand', function () {
         it('handles missing dictionary types gracefully', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('mergeDictionaries');
-            $method->setAccessible(true);
 
             $dictionaries = [
                 'main' => ['word1', 'word2'],
@@ -391,7 +379,6 @@ describe('PrepareDictionariesCommand', function () {
         it('handles empty dictionaries', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('mergeDictionaries');
-            $method->setAccessible(true);
 
             $dictionaries = [
                 'main' => [],
@@ -408,7 +395,6 @@ describe('PrepareDictionariesCommand', function () {
         it('returns configuration for all dictionary types', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('getDictionaryConfigurations');
-            $method->setAccessible(true);
 
             $result = $method->invoke($this->command);
 
@@ -421,7 +407,6 @@ describe('PrepareDictionariesCommand', function () {
         it('includes required configuration keys', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('getDictionaryConfigurations');
-            $method->setAccessible(true);
 
             $result = $method->invoke($this->command);
 
@@ -435,7 +420,6 @@ describe('PrepareDictionariesCommand', function () {
         it('has unique filenames for each dictionary', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('getDictionaryConfigurations');
-            $method->setAccessible(true);
 
             $result = $method->invoke($this->command);
             $filenames = array_column($result, 'filename');
@@ -448,7 +432,6 @@ describe('PrepareDictionariesCommand', function () {
         it('removes existing file and returns true', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('removeFileIfExists');
-            $method->setAccessible(true);
 
             $testFile = $this->tempDir.'/test-file.txt';
             file_put_contents($testFile, 'test content');
@@ -464,7 +447,6 @@ describe('PrepareDictionariesCommand', function () {
         it('returns false for non-existent file', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('removeFileIfExists');
-            $method->setAccessible(true);
 
             $nonExistentFile = $this->tempDir.'/non-existent.txt';
 
@@ -510,7 +492,6 @@ describe('PrepareDictionariesCommand', function () {
         it('saves words to file successfully', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('saveWordsToFile');
-            $method->setAccessible(true);
 
             $filePath = $this->tempDir.'/words.txt';
             $words = ['word1', 'word2', 'word3'];
@@ -526,7 +507,6 @@ describe('PrepareDictionariesCommand', function () {
         it('creates directory if it does not exist', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('saveWordsToFile');
-            $method->setAccessible(true);
 
             $subDir = $this->tempDir.'/subdir/nested';
             $filePath = $subDir.'/words.txt';
@@ -543,7 +523,6 @@ describe('PrepareDictionariesCommand', function () {
         it('throws exception when file write fails', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('saveWordsToFile');
-            $method->setAccessible(true);
 
             // Try to write to a read-only directory (simulate write failure)
             $readOnlyDir = $this->tempDir.'/readonly';
@@ -557,7 +536,7 @@ describe('PrepareDictionariesCommand', function () {
                 $method->invoke($this->command, $words, $filePath);
                 chmod($readOnlyDir, 0755); // Restore permissions
                 expect(false)->toBeTrue(); // Should not reach here
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 chmod($readOnlyDir, 0755); // Restore permissions
                 expect($e)->toBeInstanceOf(DictionaryException::class);
             }
@@ -566,7 +545,6 @@ describe('PrepareDictionariesCommand', function () {
         it('overwrites existing file', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('saveWordsToFile');
-            $method->setAccessible(true);
 
             $filePath = $this->tempDir.'/words.txt';
             file_put_contents($filePath, 'old content');
@@ -581,7 +559,6 @@ describe('PrepareDictionariesCommand', function () {
         it('handles empty word arrays', function () {
             $reflection = new ReflectionClass($this->command);
             $method = $reflection->getMethod('saveWordsToFile');
-            $method->setAccessible(true);
 
             $filePath = $this->tempDir.'/empty.txt';
             $words = [];
