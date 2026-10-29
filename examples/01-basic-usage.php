@@ -45,7 +45,7 @@ try {
     echo "Mixed text: {$mixedText}\n";
     echo 'Segmented: '.implode(' | ', $words)."\n";
 
-} catch (\Exception $e) {
+} catch (Exception $e) {
     echo 'Error: '.$e->getMessage()."\n";
     echo "Make sure the dictionary file exists and is readable.\n";
 }

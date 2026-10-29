@@ -20,7 +20,7 @@ describe('AlgorithmException', function () {
         it('extends Exception', function () {
             $exception = new AlgorithmException('Test message');
 
-            expect($exception)->toBeInstanceOf(\Exception::class);
+            expect($exception)->toBeInstanceOf(Exception::class);
         });
 
         it('can be instantiated with message', function () {
@@ -78,7 +78,7 @@ describe('AlgorithmException', function () {
         it('can be caught as Exception', function () {
             expect(function () {
                 throw new AlgorithmException('Test');
-            })->toThrow(\Exception::class);
+            })->toThrow(Exception::class);
         });
 
         it('preserves algorithm-specific error code', function () {
@@ -112,7 +112,7 @@ describe('AlgorithmException', function () {
         });
 
         it('can include previous exception', function () {
-            $previous = new \RuntimeException('Internal algorithm error');
+            $previous = new RuntimeException('Internal algorithm error');
             $exception = new AlgorithmException('Algorithm failed', 0, $previous);
 
             expect($exception->getPrevious())->toBe($previous);

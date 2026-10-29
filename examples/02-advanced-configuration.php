@@ -121,7 +121,7 @@ try {
     printf("   Memory used: %.2f MB\n", $memoryUsed);
     printf("   Processing speed: %.0f words/second\n", $wordCount / ($processingTime / 1000));
 
-} catch (\Exception $e) {
+} catch (Exception $e) {
     echo 'Error: '.$e->getMessage()."\n";
     echo "Stack trace:\n".$e->getTraceAsString()."\n";
 }

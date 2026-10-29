@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Farzai\ThaiWord\Contracts;
 
+use Farzai\ThaiWord\Exceptions\DictionaryException;
+
 /**
  * Interface for dictionary data sources using Adapter pattern
  *
@@ -17,7 +19,7 @@ interface DictionarySourceInterface
      *
      * @return array<int, string> Array of words
      *
-     * @throws \Farzai\ThaiWord\Exceptions\DictionaryException If source cannot be read
+     * @throws DictionaryException If source cannot be read
      */
     public function getWords(): array;
 

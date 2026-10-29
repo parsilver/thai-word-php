@@ -505,10 +505,10 @@ describe('DictionaryLoaderService', function () {
 
             $this->sourceFactory->shouldReceive('create')
                 ->once()
-                ->andThrow(new \InvalidArgumentException('Invalid configuration'));
+                ->andThrow(new InvalidArgumentException('Invalid configuration'));
 
             expect(fn () => $this->service->loadFromUrl($url))
-                ->toThrow(\InvalidArgumentException::class, 'Invalid configuration');
+                ->toThrow(InvalidArgumentException::class, 'Invalid configuration');
         });
 
         it('handles source creation failures gracefully', function () {
@@ -516,10 +516,10 @@ describe('DictionaryLoaderService', function () {
 
             $this->sourceFactory->shouldReceive('create')
                 ->once()
-                ->andThrow(new \RuntimeException('HTTP client not available'));
+                ->andThrow(new RuntimeException('HTTP client not available'));
 
             expect(fn () => $this->service->loadFromUrl($url))
-                ->toThrow(\RuntimeException::class);
+                ->toThrow(RuntimeException::class);
         });
     });
 });

@@ -2,6 +2,8 @@
 
 namespace Farzai\ThaiWord\Contracts;
 
+use Farzai\ThaiWord\Exceptions\AlgorithmException;
+
 interface AlgorithmInterface
 {
     /**
@@ -11,7 +13,7 @@ interface AlgorithmInterface
      * @param  DictionaryInterface  $dictionary  The dictionary to use
      * @return array<string> Array of segmented words
      *
-     * @throws \Farzai\ThaiWord\Exceptions\AlgorithmException
+     * @throws AlgorithmException
      */
     public function process(string $text, DictionaryInterface $dictionary): array;
 }

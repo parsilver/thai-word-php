@@ -20,7 +20,7 @@ describe('DictionaryException', function () {
         it('extends Exception', function () {
             $exception = new DictionaryException('Test message');
 
-            expect($exception)->toBeInstanceOf(\Exception::class);
+            expect($exception)->toBeInstanceOf(Exception::class);
         });
 
         it('can be instantiated with message', function () {
@@ -83,7 +83,7 @@ describe('DictionaryException', function () {
         it('can be caught as Exception', function () {
             expect(function () {
                 throw new DictionaryException('Test');
-            })->toThrow(\Exception::class);
+            })->toThrow(Exception::class);
         });
 
         it('preserves dictionary-specific error code', function () {
@@ -147,7 +147,7 @@ describe('DictionaryException', function () {
         });
 
         it('can include previous exception', function () {
-            $previous = new \RuntimeException('File system error');
+            $previous = new RuntimeException('File system error');
             $exception = new DictionaryException('Dictionary operation failed', 0, $previous);
 
             expect($exception->getPrevious())->toBe($previous);
