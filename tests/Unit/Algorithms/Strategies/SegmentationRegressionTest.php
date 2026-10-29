@@ -1,6 +1,7 @@
 <?php
 
 use Farzai\ThaiWord\Algorithms\Strategies\LongestMatchingStrategy;
+use Farzai\ThaiWord\Contracts\DictionaryInterface;
 use Farzai\ThaiWord\Dictionary\HashDictionary;
 use Farzai\ThaiWord\Segmenter\ThaiSegmenter;
 
@@ -42,6 +43,14 @@ describe('segmentation regressions', function () {
             expect($this->algorithm->process('เก', $this->dictionary))->toBe(['เก']);
         });
 
+        it('keeps a doubled leading vowel in one cluster', function () {
+            expect($this->algorithm->process('เเม่', $this->dictionary))->toBe(['เเม่']);
+        });
+
+        it('does not attach a leading vowel to a digit', function () {
+            expect($this->algorithm->process('เ๑๒', $this->dictionary))->toBe(['เ', '๑๒']);
+        });
+
         it('does not end a word before a following vowel or mark', function () {
             // "ก" is a word, but "กี่" must not be split into "ก" + "ี่"
             expect($this->algorithm->process('กี่', $this->dictionary))->toBe(['กี่']);
@@ -68,13 +77,49 @@ describe('segmentation regressions', function () {
         });
     });
 
-    describe('dictionary changes between calls', function () {
-        it('uses words added after a previous call', function () {
-            expect($this->algorithm->process('สวัสดี', $this->dictionary))->not->toBe(['สวัสดี']);
+    describe('match cache', function () {
+        it('uses words added to a plain dictionary after a previous call', function () {
+            // No getMaxWordLength(), so the strategy keeps its default window
+            $dictionary = new class implements DictionaryInterface
+            {
+                public array $words = ['สวัส' => true];
 
-            $this->dictionary->add('สวัสดี');
+                public function load(string $source): void {}
 
-            expect($this->algorithm->process('สวัสดี', $this->dictionary))->toBe(['สวัสดี']);
+                public function add(string $word): bool
+                {
+                    $this->words[$word] = true;
+
+                    return true;
+                }
+
+                public function remove(string $word): bool
+                {
+                    unset($this->words[$word]);
+
+                    return true;
+                }
+
+                public function contains(string $word): bool
+                {
+                    return isset($this->words[$word]);
+                }
+
+                public function getWords(): array
+                {
+                    return array_keys($this->words);
+                }
+            };
+
+            expect($this->algorithm->process('สวัสดี', $dictionary))->toBe(['สวัส', 'ดี']);
+
+            $dictionary->add('สวัสดี');
+
+            expect($this->algorithm->process('สวัสดี', $dictionary))->toBe(['สวัสดี']);
+        });
+
+        it('does not reuse a cluster that is longer than the dictionary window', function () {
+            expect($this->algorithm->process('กี่ กี ก', new HashDictionary))->toBe(['กี่', ' ', 'กี', ' ', 'ก']);
         });
     });
 });

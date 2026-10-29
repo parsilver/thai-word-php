@@ -42,7 +42,7 @@
     "suggest": {
         "farzai/transport": "Required for downloading remote dictionaries from URLs",
         "guzzlehttp/guzzle": "PSR-18 HTTP client for transport (popular, widely used)",
-        "symfony/console": "Required for the bin/thai-word CLI (dict:prepare)",
+        "symfony/console": "Required for the bin/thai-word CLI (dict:prepare), ^7.0 or ^8.0",
         "symfony/http-client": "PSR-18 HTTP client for transport (modern, async support)"
     },
     "autoload": {

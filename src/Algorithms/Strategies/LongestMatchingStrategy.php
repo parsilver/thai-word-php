@@ -50,6 +50,10 @@ class LongestMatchingStrategy implements AlgorithmInterface
 
     private const THAI_RANGE_END = 0x0E7F;
 
+    private const THAI_CONSONANT_START = 0x0E01;
+
+    private const THAI_CONSONANT_END = 0x0E2E;
+
     private const THAI_DIGIT_START = 0x0E50;
 
     private const THAI_DIGIT_END = 0x0E59;
@@ -175,7 +179,8 @@ class LongestMatchingStrategy implements AlgorithmInterface
         }
 
         if ($best === 0) {
-            $best = $this->clusterLength($chars, $position);
+            // Not cached: a cluster can reach past the characters in the key
+            return $this->clusterLength($chars, $position);
         }
 
         $this->cacheMatch($cacheKey, $best);
@@ -198,8 +203,9 @@ class LongestMatchingStrategy implements AlgorithmInterface
     }
 
     /**
-     * Length of the Thai character cluster starting at $position: optional
-     * leading vowel, one base character, then every attaching mark or vowel
+     * Length of the Thai character cluster starting at $position: any leading
+     * vowels with the consonant they precede, or one base character, then
+     * every attaching mark or vowel
      *
      * @param  array<int, string>  $chars
      */
@@ -208,8 +214,15 @@ class LongestMatchingStrategy implements AlgorithmInterface
         $count = count($chars);
         $end = $position + 1;
 
-        if ($this->isLeadingVowel(mb_ord($chars[$position], 'UTF-8')) && $end < $count && $this->isThai($chars[$end])) {
-            $end++;
+        if ($this->isLeadingVowel(mb_ord($chars[$position], 'UTF-8'))) {
+            // A doubled leading vowel ("เเ" typed for "แ") stays in one cluster
+            while ($end < $count && $this->isLeadingVowel(mb_ord($chars[$end], 'UTF-8'))) {
+                $end++;
+            }
+
+            if ($end < $count && $this->isThaiConsonant($chars[$end])) {
+                $end++;
+            }
         }
 
         while ($end < $count && isset(self::THAI_ATTACHING[mb_ord($chars[$end], 'UTF-8')])) {
@@ -272,11 +285,11 @@ class LongestMatchingStrategy implements AlgorithmInterface
         return 'other';
     }
 
-    private function isThai(string $char): bool
+    private function isThaiConsonant(string $char): bool
     {
         $codePoint = mb_ord($char, 'UTF-8');
 
-        return $codePoint >= self::THAI_RANGE_START && $codePoint <= self::THAI_RANGE_END;
+        return $codePoint >= self::THAI_CONSONANT_START && $codePoint <= self::THAI_CONSONANT_END;
     }
 
     private function isLeadingVowel(int $codePoint): bool
