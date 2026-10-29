@@ -12,18 +12,10 @@ use Farzai\ThaiWord\Exceptions\SegmentationException;
 use Farzai\ThaiWord\Services\DictionaryLoaderService;
 
 /**
- * Memory-optimized Dictionary implementation with hash-based lookups.
+ * Dictionary backed by a PHP hash map.
  *
- * This implementation provides significant memory optimizations:
- * - O(1) hash-based word lookup instead of O(n) linear search
- * - Simplified data structure without trie overhead
- * - Optimized batch processing with garbage collection
- * - Memory-efficient word storage
- *
- * Performance characteristics:
- * - Word lookup: O(1) average case
- * - Memory usage: ~70% less than trie-based storage
- * - Loading time: ~40% faster with optimized parsing
+ * Word lookup is O(1) on average. Prefix queries have no index and scan
+ * every word, so they are O(n) in the dictionary size.
  */
 class HashDictionary implements DictionaryInterface
 {
@@ -97,6 +89,9 @@ class HashDictionary implements DictionaryInterface
 
     /**
      * Add a word to the dictionary.
+     *
+     * Unlike the bulk loaders, which keep only Thai entries, this accepts any
+     * non-empty UTF-8 word, so custom Latin or mixed entries can be added here.
      *
      * @param  string  $word  The word to add
      * @return bool True if word was added, false if already exists
@@ -223,7 +218,9 @@ class HashDictionary implements DictionaryInterface
     }
 
     /**
-     * Check if any words exist with the given prefix (memory-optimized).
+     * Check if any words exist with the given prefix.
+     *
+     * Scans the whole dictionary: O(n) in the number of words.
      *
      * @param  string  $prefix  Prefix to check
      * @return bool True if words with prefix exist, false otherwise
@@ -234,8 +231,8 @@ class HashDictionary implements DictionaryInterface
             return $this->wordCount > 0;
         }
 
-        foreach (array_keys($this->wordHash) as $word) {
-            if (str_starts_with($word, $prefix)) {
+        foreach ($this->wordHash as $word => $_) {
+            if (str_starts_with((string) $word, $prefix)) {
                 return true;
             }
         }
@@ -358,8 +355,10 @@ class HashDictionary implements DictionaryInterface
             return null;
         }
 
+        // Drop Hunspell flags ("word/AB") and morphological fields such as
+        // " ph:misspelling", which would otherwise become part of the word
         $wordParts = explode('/', $word);
-        $cleanWord = trim($wordParts[0]);
+        $cleanWord = trim(preg_replace('/\s+[a-z]{2}:.*$/u', '', $wordParts[0]) ?? '');
 
         if ($cleanWord === '' || ! mb_check_encoding($cleanWord, 'UTF-8')) {
             return null;
@@ -408,6 +407,7 @@ class HashDictionary implements DictionaryInterface
             unset($this->lengthStats[$length]);
         }
         $this->wordCount--;
+        $this->maxWordLength = $this->lengthStats === [] ? 0 : max(array_keys($this->lengthStats));
     }
 
     /**

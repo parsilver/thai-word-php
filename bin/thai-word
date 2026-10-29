@@ -49,12 +49,19 @@ function validateEnvironment(): void
     }
     
     // Check PHP version requirement (updated to match project standards)
-    if (version_compare(PHP_VERSION, '8.2', '<')) {
+    if (version_compare(PHP_VERSION, '8.4', '<')) {
         throw new RuntimeException(
             sprintf(
-                "This application requires PHP 8.2 or higher.\nCurrent PHP version: %s",
+                "This application requires PHP 8.4 or higher.\nCurrent PHP version: %s",
                 PHP_VERSION
             )
+        );
+    }
+
+    // The CLI is optional, so symfony/console is not a hard dependency
+    if (! class_exists(\Symfony\Component\Console\Application::class)) {
+        throw new RuntimeException(
+            "The thai-word CLI requires symfony/console.\nInstall it with: composer require symfony/console"
         );
     }
 }

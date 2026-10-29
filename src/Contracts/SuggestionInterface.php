@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Farzai\ThaiWord\Contracts;
 
+use Farzai\ThaiWord\Exceptions\SegmentationException;
+
 interface SuggestionInterface
 {
     /**
@@ -14,7 +16,7 @@ interface SuggestionInterface
      * @param  int  $maxSuggestions  Maximum number of suggestions to return
      * @return array<int, array{word: string, score: float}> Array of suggestions with scores
      *
-     * @throws \Farzai\ThaiWord\Exceptions\SegmentationException
+     * @throws SegmentationException
      */
     public function suggest(string $word, DictionaryInterface $dictionary, int $maxSuggestions = 5): array;
 

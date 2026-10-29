@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Farzai\ThaiWord\Contracts;
 
+use Farzai\ThaiWord\Exceptions\DictionaryException;
+
 /**
  * Interface for dictionary content parsers
  *
@@ -18,7 +20,7 @@ interface DictionaryParserInterface
      * @param  string  $content  Raw dictionary content
      * @return array<int, string> Array of processed words
      *
-     * @throws \Farzai\ThaiWord\Exceptions\DictionaryException If content format is invalid
+     * @throws DictionaryException If content format is invalid
      */
     public function parse(string $content): array;
 

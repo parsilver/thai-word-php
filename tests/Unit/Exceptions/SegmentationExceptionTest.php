@@ -13,7 +13,7 @@ describe('SegmentationException', function () {
         it('extends Exception', function () {
             $exception = new SegmentationException('Test message');
 
-            expect($exception)->toBeInstanceOf(\Exception::class);
+            expect($exception)->toBeInstanceOf(Exception::class);
         });
 
         it('can be instantiated with message', function () {
@@ -33,7 +33,7 @@ describe('SegmentationException', function () {
         });
 
         it('can be instantiated with previous exception', function () {
-            $previous = new \Exception('Previous exception');
+            $previous = new Exception('Previous exception');
             $exception = new SegmentationException('Current exception', 0, $previous);
 
             expect($exception->getPrevious())->toBe($previous);
@@ -135,11 +135,11 @@ describe('SegmentationException', function () {
         it('can be caught as Exception', function () {
             expect(function () {
                 throw new SegmentationException('Test');
-            })->toThrow(\Exception::class);
+            })->toThrow(Exception::class);
         });
 
         it('preserves exception chain', function () {
-            $previous = new \RuntimeException('Previous error');
+            $previous = new RuntimeException('Previous error');
             $exception = new SegmentationException('Current error', 0, $previous);
 
             expect($exception->getPrevious())->toBe($previous);

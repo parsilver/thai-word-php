@@ -19,7 +19,7 @@ describe('LibreOffice Dictionary Performance Benchmarks', function () {
             // Try to load dictionary, but fallback to test data if network fails
             try {
                 $sharedDictionary->loadLibreOfficeThaiDictionary('main');
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Fallback to test dictionary for CI environments
                 $testDictPath = __DIR__.'/../Fixtures/test-dictionary.txt';
                 if (file_exists($testDictPath)) {

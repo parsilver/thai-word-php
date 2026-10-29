@@ -161,7 +161,7 @@ describe('Console Application', function () {
 
     describe('application behavior', function () {
         it('extends Symfony Console Application', function () {
-            expect($this->application)->toBeInstanceOf(\Symfony\Component\Console\Application::class);
+            expect($this->application)->toBeInstanceOf(Symfony\Component\Console\Application::class);
         });
 
         it('has commands configured', function () {

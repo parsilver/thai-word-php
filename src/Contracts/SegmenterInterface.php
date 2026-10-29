@@ -2,6 +2,8 @@
 
 namespace Farzai\ThaiWord\Contracts;
 
+use Farzai\ThaiWord\Exceptions\SegmentationException;
+
 interface SegmenterInterface
 {
     /**
@@ -10,7 +12,7 @@ interface SegmenterInterface
      * @param  string  $text  The Thai text to segment
      * @return array<string> Array of segmented words
      *
-     * @throws \Farzai\ThaiWord\Exceptions\SegmentationException
+     * @throws SegmentationException
      */
     public function segment(string $text): array;
 
@@ -21,7 +23,7 @@ interface SegmenterInterface
      * @param  string  $delimiter  The delimiter to use between words
      * @return string Segmented text with delimiters
      *
-     * @throws \Farzai\ThaiWord\Exceptions\SegmentationException
+     * @throws SegmentationException
      */
     public function segmentToString(string $text, string $delimiter = '|'): string;
 }

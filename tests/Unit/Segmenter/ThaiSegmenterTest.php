@@ -1,6 +1,8 @@
 <?php
 
 use Farzai\ThaiWord\Algorithms\Strategies\LongestMatchingStrategy;
+use Farzai\ThaiWord\Contracts\AlgorithmInterface;
+use Farzai\ThaiWord\Contracts\DictionaryInterface;
 use Farzai\ThaiWord\Dictionary\HashDictionary;
 use Farzai\ThaiWord\Exceptions\SegmentationException;
 use Farzai\ThaiWord\Segmenter\ThaiSegmenter;
@@ -267,7 +269,7 @@ describe('ThaiSegmenter', function () {
 
             $dictionary = $segmenter->getDictionary();
 
-            expect($dictionary)->toBeInstanceOf(\Farzai\ThaiWord\Contracts\DictionaryInterface::class);
+            expect($dictionary)->toBeInstanceOf(DictionaryInterface::class);
         });
 
         it('uses default algorithm when none provided', function () {
@@ -275,7 +277,7 @@ describe('ThaiSegmenter', function () {
 
             $algorithm = $segmenter->getAlgorithm();
 
-            expect($algorithm)->toBeInstanceOf(\Farzai\ThaiWord\Contracts\AlgorithmInterface::class);
+            expect($algorithm)->toBeInstanceOf(AlgorithmInterface::class);
         });
 
         it('accepts custom configuration', function () {

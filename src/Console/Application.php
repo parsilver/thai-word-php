@@ -37,7 +37,9 @@ class Application extends BaseApplication
         ];
 
         foreach ($commands as $command) {
-            $this->add($command);
+            // addCommand() replaces add() from symfony/console 7.4 on; consumers
+            // may still run an older 7.x
+            method_exists($this, 'addCommand') ? $this->addCommand($command) : $this->add($command);
         }
     }
 

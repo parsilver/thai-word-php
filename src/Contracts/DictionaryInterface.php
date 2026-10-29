@@ -2,6 +2,8 @@
 
 namespace Farzai\ThaiWord\Contracts;
 
+use Farzai\ThaiWord\Exceptions\DictionaryException;
+
 interface DictionaryInterface
 {
     /**
@@ -9,7 +11,7 @@ interface DictionaryInterface
      *
      * @param  string  $source  The source to load from
      *
-     * @throws \Farzai\ThaiWord\Exceptions\DictionaryException
+     * @throws DictionaryException
      */
     public function load(string $source): void;
 
@@ -19,7 +21,7 @@ interface DictionaryInterface
      * @param  string  $word  The word to add
      * @return bool True if word was added, false if already exists
      *
-     * @throws \Farzai\ThaiWord\Exceptions\DictionaryException
+     * @throws DictionaryException
      */
     public function add(string $word): bool;
 
@@ -29,7 +31,7 @@ interface DictionaryInterface
      * @param  string  $word  The word to remove
      * @return bool True if word was removed, false if not found
      *
-     * @throws \Farzai\ThaiWord\Exceptions\DictionaryException
+     * @throws DictionaryException
      */
     public function remove(string $word): bool;
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Farzai\ThaiWord\Console\Commands;
 
+use Farzai\ThaiWord\Contracts\DictionarySourceInterface;
 use Farzai\ThaiWord\Dictionary\Factories\DictionarySourceFactory;
 use Farzai\ThaiWord\Exceptions\DictionaryException;
 use Farzai\ThaiWord\Services\DictionaryLoaderService;
@@ -618,7 +619,7 @@ class PrepareDictionariesCommand extends Command
      * @param  string  $type  Dictionary type (main, typos_translit, typos_common)
      * @param  int  $timeout  HTTP timeout in seconds
      */
-    private function createDictionarySource(string $type, int $timeout): \Farzai\ThaiWord\Contracts\DictionarySourceInterface
+    private function createDictionarySource(string $type, int $timeout): DictionarySourceInterface
     {
         return DictionarySourceFactory::createLibreOfficeDictionary($type, $timeout);
     }
@@ -654,14 +655,14 @@ class PrepareDictionariesCommand extends Command
      * @param  array<string>  $words  Downloaded dictionary words
      * @param  string  $filePath  Path to the saved file
      * @param  float  $startTime  Start time for performance calculation
-     * @param  \Farzai\ThaiWord\Contracts\DictionarySourceInterface  $source  Dictionary source
+     * @param  DictionarySourceInterface  $source  Dictionary source
      */
     private function displayDictionaryStats(
         array $config,
         array $words,
         string $filePath,
         float $startTime,
-        \Farzai\ThaiWord\Contracts\DictionarySourceInterface $source
+        DictionarySourceInterface $source
     ): void {
         // Calculate download duration in milliseconds
         $duration = round((microtime(true) - $startTime) * 1000, 2);

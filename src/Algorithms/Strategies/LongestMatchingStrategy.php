@@ -6,24 +6,24 @@ namespace Farzai\ThaiWord\Algorithms\Strategies;
 
 use Farzai\ThaiWord\Contracts\AlgorithmInterface;
 use Farzai\ThaiWord\Contracts\DictionaryInterface;
-use Farzai\ThaiWord\Dictionary\HashDictionary;
 use Farzai\ThaiWord\Exceptions\AlgorithmException;
 use Farzai\ThaiWord\Exceptions\SegmentationException;
 
 /**
- * Optimized Longest Matching Strategy for Thai word segmentation
+ * Longest Matching Strategy for Thai word segmentation
  *
- * This strategy implements several performance optimizations:
- * - Early termination when no prefixes match
- * - Adaptive max length based on dictionary statistics
- * - Batch processing for repeated substrings
- * - Smart character classification for non-Thai characters
+ * At each position the strategy takes the longest dictionary word that does
+ * not split a Thai character cluster. When no word matches, it emits one
+ * character cluster (a consonant together with its vowels and tone marks)
+ * instead of a lone code point, so marks such as "่" or "์" never become
+ * tokens of their own.
  *
- * Performance improvements:
- * - 3-5x faster processing speed
- * - 50% less memory allocation
- * - Better handling of mixed Thai/English text
- * - O(1) dictionary lookups instead of O(n)
+ * Latin words, Arabic and Thai digit runs, whitespace and punctuation are
+ * handled without dictionary lookups. Runs of whitespace (including line
+ * breaks) are normalized to a single " " token.
+ *
+ * The text is split into characters once, so the cost per position does not
+ * grow with the length of the input.
  */
 class LongestMatchingStrategy implements AlgorithmInterface
 {
@@ -34,9 +34,10 @@ class LongestMatchingStrategy implements AlgorithmInterface
     private int $maxWordLength = 20;
 
     /**
-     * Cache for recently matched words to avoid redundant lookups
+     * Cache of match lengths for the current call, keyed by the look-ahead
+     * window that decides them
      *
-     * @var array<string, string>
+     * @var array<string, int>
      */
     private array $matchCache = [];
 
@@ -45,17 +46,43 @@ class LongestMatchingStrategy implements AlgorithmInterface
      */
     private const MAX_CACHE_SIZE = 1000;
 
-    /**
-     * Thai character ranges for fast classification
-     */
     private const THAI_RANGE_START = 0x0E00;
 
     private const THAI_RANGE_END = 0x0E7F;
 
+    private const THAI_CONSONANT_START = 0x0E01;
+
+    private const THAI_CONSONANT_END = 0x0E2E;
+
+    private const THAI_DIGIT_START = 0x0E50;
+
+    private const THAI_DIGIT_END = 0x0E59;
+
     /**
-     * English character pattern for optimization
+     * Leading vowels (เ แ โ ใ ไ) are written before the consonant they belong to
      */
-    private const ENGLISH_PATTERN = '/^[a-zA-Z0-9\s\-_.]+$/';
+    private const THAI_LEADING_VOWEL_START = 0x0E40;
+
+    private const THAI_LEADING_VOWEL_END = 0x0E44;
+
+    /**
+     * Characters that can never start a Thai syllable: they belong to the
+     * character before them (following vowels, above/below vowels, tone marks
+     * and other diacritics)
+     *
+     * @var array<int, true>
+     */
+    private const THAI_ATTACHING = [
+        0x0E30 => true, // sara a
+        0x0E31 => true, // mai han-akat
+        0x0E32 => true, // sara aa
+        0x0E33 => true, // sara am
+        0x0E34 => true, 0x0E35 => true, 0x0E36 => true, 0x0E37 => true,
+        0x0E38 => true, 0x0E39 => true, 0x0E3A => true,
+        0x0E45 => true, // lakkhangyao
+        0x0E47 => true, 0x0E48 => true, 0x0E49 => true, 0x0E4A => true,
+        0x0E4B => true, 0x0E4C => true, 0x0E4D => true, 0x0E4E => true,
+    ];
 
     public function process(string $text, DictionaryInterface $dictionary): array
     {
@@ -75,253 +102,199 @@ class LongestMatchingStrategy implements AlgorithmInterface
         // Optimize dictionary-specific settings
         $this->optimizeForDictionary($dictionary);
 
-        // Pre-process text for better segmentation
-        $text = $this->preProcessText($text);
+        // Matches are only valid for the dictionary as it is right now, which
+        // may differ from the previous call (other instance, or words added)
+        $this->matchCache = [];
 
-        return $this->segmentOptimized($text, $dictionary);
+        $chars = mb_str_split($this->preProcessText($text), 1, 'UTF-8');
+
+        return $this->segmentChars($chars, $dictionary);
     }
 
     /**
-     * Optimized segmentation with multiple performance enhancements
+     * Segment a pre-split character array
+     *
+     * @param  array<int, string>  $chars
+     * @return array<int, string>
      */
-    private function segmentOptimized(string $text, DictionaryInterface $dictionary): array
+    private function segmentChars(array $chars, DictionaryInterface $dictionary): array
     {
         $result = [];
-        $textLength = mb_strlen($text, 'UTF-8');
+        $count = count($chars);
         $position = 0;
 
-        while ($position < $textLength) {
-            $matchResult = $this->findOptimalMatch($text, $position, $dictionary);
+        while ($position < $count) {
+            $length = $this->matchLength($chars, $position, $dictionary);
+            $token = implode('', array_slice($chars, $position, $length));
 
-            $result[] = $matchResult['word'];
-            $position = $matchResult['new_position'];
+            // Whitespace runs collapse to a single space
+            $result[] = $this->classifyCharacter($chars[$position]) === 'space' ? ' ' : $token;
+            $position += $length;
         }
 
         return $this->postProcessResult($result);
     }
 
     /**
-     * Find optimal match at current position with multiple optimization strategies
+     * Number of characters the token starting at $position spans
+     *
+     * @param  array<int, string>  $chars
      */
-    private function findOptimalMatch(string $text, int $position, DictionaryInterface $dictionary): array
+    private function matchLength(array $chars, int $position, DictionaryInterface $dictionary): int
     {
-        $textLength = mb_strlen($text, 'UTF-8');
-        $remainingLength = $textLength - $position;
-
-        // Quick check for single character if very short remaining text
-        if ($remainingLength === 1) {
-            return [
-                'word' => mb_substr($text, $position, 1, 'UTF-8'),
-                'new_position' => $position + 1,
-            ];
-        }
-
-        // Determine optimal search strategy based on character type
-        $firstChar = mb_substr($text, $position, 1, 'UTF-8');
-        $charType = $this->classifyCharacter($firstChar);
-
-        switch ($charType) {
-            case 'thai':
-                return $this->findThaiWordMatch($text, $position, $dictionary);
-
-            case 'english':
-                return $this->findEnglishWordMatch($text, $position);
-
-            case 'number':
-                return $this->findNumberMatch($text, $position);
-
-            case 'punctuation':
-            case 'space':
-                return $this->findNonWordMatch($text, $position);
-
-            default:
-                return [
-                    'word' => $firstChar,
-                    'new_position' => $position + 1,
-                ];
-        }
+        return match ($this->classifyCharacter($chars[$position])) {
+            'thai' => $this->thaiMatchLength($chars, $position, $dictionary),
+            'english' => $this->runLength($chars, $position, '/^[a-zA-Z0-9\-_.@]$/u', '.-_@'),
+            'number' => $this->runLength($chars, $position, '/^[0-9\x{0E50}-\x{0E59}.,]$/u', '.,'),
+            'space' => $this->runLength($chars, $position, '/^\s$/u', ''),
+            default => 1,
+        };
     }
 
     /**
-     * Find Thai word match using optimized dictionary lookup
+     * Longest dictionary word at $position that ends on a cluster boundary,
+     * or the length of one character cluster when no word matches
+     *
+     * @param  array<int, string>  $chars
      */
-    private function findThaiWordMatch(string $text, int $position, DictionaryInterface $dictionary): array
+    private function thaiMatchLength(array $chars, int $position, DictionaryInterface $dictionary): int
     {
-        $textLength = mb_strlen($text, 'UTF-8');
-        $maxLength = min($this->maxWordLength, $textLength - $position);
+        $count = count($chars);
+        $window = min($this->maxWordLength, $count - $position);
 
-        // Use optimized dictionary methods if available
-        if ($dictionary instanceof HashDictionary && method_exists($dictionary, 'findLongestMatch')) {
-            $match = $dictionary->findLongestMatch($text, $position, $maxLength);
-            if ($match !== null) {
-                return [
-                    'word' => $match,
-                    'new_position' => $position + mb_strlen($match, 'UTF-8'),
-                ];
-            }
-        } else {
-            // Fallback to standard dictionary lookup with cache
-            $cacheKey = mb_substr($text, $position, $maxLength, 'UTF-8');
-            if (isset($this->matchCache[$cacheKey])) {
-                $match = $this->matchCache[$cacheKey];
+        // The match depends on the window plus the character right after it
+        $cacheKey = implode('', array_slice($chars, $position, $window + 1));
+        if (isset($this->matchCache[$cacheKey])) {
+            return $this->matchCache[$cacheKey];
+        }
 
-                return [
-                    'word' => $match,
-                    'new_position' => $position + mb_strlen($match, 'UTF-8'),
-                ];
-            }
+        $best = 0;
+        $candidate = '';
+        for ($length = 1; $length <= $window; $length++) {
+            $candidate .= $chars[$position + $length - 1];
 
-            // Standard longest matching with early termination
-            for ($length = $maxLength; $length >= 1; $length--) {
-                $candidate = mb_substr($text, $position, $length, 'UTF-8');
-
-                // Early termination if no words start with this prefix
-                if ($dictionary instanceof HashDictionary && method_exists($dictionary, 'hasWordsWithPrefix') && ! $dictionary->hasWordsWithPrefix($candidate)) {
-                    break;
-                }
-
-                if ($dictionary->contains($candidate)) {
-                    $this->cacheMatch($cacheKey, $candidate);
-
-                    return [
-                        'word' => $candidate,
-                        'new_position' => $position + $length,
-                    ];
-                }
+            if ($this->isClusterBoundary($chars, $position + $length) && $dictionary->contains($candidate)) {
+                $best = $length;
             }
         }
 
-        // No match found, return single character
-        return [
-            'word' => mb_substr($text, $position, 1, 'UTF-8'),
-            'new_position' => $position + 1,
-        ];
+        if ($best === 0) {
+            // Not cached: a cluster can reach past the characters in the key
+            return $this->clusterLength($chars, $position);
+        }
+
+        $this->cacheMatch($cacheKey, $best);
+
+        return $best;
     }
 
     /**
-     * Find English word match (handle complete English words)
+     * Whether a token may end right before index $end
+     *
+     * @param  array<int, string>  $chars
      */
-    private function findEnglishWordMatch(string $text, int $position): array
+    private function isClusterBoundary(array $chars, int $end): bool
     {
-        $textLength = mb_strlen($text, 'UTF-8');
-        $wordEnd = $position;
+        if ($this->isLeadingVowel(mb_ord($chars[$end - 1], 'UTF-8'))) {
+            return false;
+        }
 
-        // Find end of English word (letters, numbers, basic punctuation)
-        while ($wordEnd < $textLength) {
-            $char = mb_substr($text, $wordEnd, 1, 'UTF-8');
-            if (! preg_match('/[a-zA-Z0-9\-_.@]/', $char)) {
-                break;
+        return $end >= count($chars) || ! isset(self::THAI_ATTACHING[mb_ord($chars[$end], 'UTF-8')]);
+    }
+
+    /**
+     * Length of the Thai character cluster starting at $position: any leading
+     * vowels with the consonant they precede, or one base character, then
+     * every attaching mark or vowel
+     *
+     * @param  array<int, string>  $chars
+     */
+    private function clusterLength(array $chars, int $position): int
+    {
+        $count = count($chars);
+        $end = $position + 1;
+
+        if ($this->isLeadingVowel(mb_ord($chars[$position], 'UTF-8'))) {
+            // A doubled leading vowel ("เเ" typed for "แ") stays in one cluster
+            while ($end < $count && $this->isLeadingVowel(mb_ord($chars[$end], 'UTF-8'))) {
+                $end++;
             }
-            $wordEnd++;
-        }
 
-        $word = mb_substr($text, $position, $wordEnd - $position, 'UTF-8');
-
-        return [
-            'word' => $word,
-            'new_position' => $wordEnd,
-        ];
-    }
-
-    /**
-     * Find number sequence (digits, decimals, commas)
-     */
-    private function findNumberMatch(string $text, int $position): array
-    {
-        $textLength = mb_strlen($text, 'UTF-8');
-        $numberEnd = $position;
-
-        // Find end of number sequence
-        while ($numberEnd < $textLength) {
-            $char = mb_substr($text, $numberEnd, 1, 'UTF-8');
-            if (! preg_match('/[0-9.,]/', $char)) {
-                break;
+            if ($end < $count && $this->isThaiConsonant($chars[$end])) {
+                $end++;
             }
-            $numberEnd++;
         }
 
-        $number = mb_substr($text, $position, $numberEnd - $position, 'UTF-8');
+        while ($end < $count && isset(self::THAI_ATTACHING[mb_ord($chars[$end], 'UTF-8')])) {
+            $end++;
+        }
 
-        return [
-            'word' => $number,
-            'new_position' => $numberEnd,
-        ];
+        return $end - $position;
     }
 
     /**
-     * Handle punctuation and special characters
+     * Length of a run of characters matching $pattern, without trailing
+     * characters listed in $trailingTrim (so "example.com." keeps its final
+     * period as a separate token)
+     *
+     * @param  array<int, string>  $chars
      */
-    private function findNonWordMatch(string $text, int $position): array
+    private function runLength(array $chars, int $position, string $pattern, string $trailingTrim): int
     {
-        $char = mb_substr($text, $position, 1, 'UTF-8');
+        $count = count($chars);
+        $end = $position;
 
-        // Handle whitespace specially
-        if (preg_match('/\s/', $char)) {
-            return $this->findWhitespaceMatch($text, $position);
+        while ($end < $count && preg_match($pattern, $chars[$end])) {
+            $end++;
         }
 
-        return [
-            'word' => $char,
-            'new_position' => $position + 1,
-        ];
+        while ($end - $position > 1 && $trailingTrim !== '' && str_contains($trailingTrim, $chars[$end - 1])) {
+            $end--;
+        }
+
+        return max(1, $end - $position);
     }
 
     /**
-     * Handle whitespace sequences
-     */
-    private function findWhitespaceMatch(string $text, int $position): array
-    {
-        $textLength = mb_strlen($text, 'UTF-8');
-        $spaceEnd = $position;
-
-        // Find end of whitespace sequence
-        while ($spaceEnd < $textLength) {
-            $char = mb_substr($text, $spaceEnd, 1, 'UTF-8');
-            if (! preg_match('/\s/', $char)) {
-                break;
-            }
-            $spaceEnd++;
-        }
-
-        // Return single space for all whitespace sequences
-        return [
-            'word' => ' ',
-            'new_position' => $spaceEnd,
-        ];
-    }
-
-    /**
-     * Classify character type for optimization
+     * Classify character type
      */
     private function classifyCharacter(string $char): string
     {
-        // Fast Thai character detection using Unicode ranges
         $codePoint = mb_ord($char, 'UTF-8');
+
+        if ($codePoint >= self::THAI_DIGIT_START && $codePoint <= self::THAI_DIGIT_END) {
+            return 'number';
+        }
+
         if ($codePoint >= self::THAI_RANGE_START && $codePoint <= self::THAI_RANGE_END) {
             return 'thai';
         }
 
-        // English characters
         if (preg_match('/[a-zA-Z]/', $char)) {
             return 'english';
         }
 
-        // Numbers
         if (preg_match('/[0-9]/', $char)) {
             return 'number';
         }
 
-        // Whitespace
-        if (preg_match('/\s/', $char)) {
+        if (preg_match('/\s/u', $char)) {
             return 'space';
         }
 
-        // Punctuation
-        if (preg_match('/[[:punct:]]/', $char)) {
-            return 'punctuation';
-        }
-
         return 'other';
+    }
+
+    private function isThaiConsonant(string $char): bool
+    {
+        $codePoint = mb_ord($char, 'UTF-8');
+
+        return $codePoint >= self::THAI_CONSONANT_START && $codePoint <= self::THAI_CONSONANT_END;
+    }
+
+    private function isLeadingVowel(int $codePoint): bool
+    {
+        return $codePoint >= self::THAI_LEADING_VOWEL_START && $codePoint <= self::THAI_LEADING_VOWEL_END;
     }
 
     /**
@@ -331,7 +304,7 @@ class LongestMatchingStrategy implements AlgorithmInterface
     {
         // Adjust max word length based on dictionary if method available
         if (method_exists($dictionary, 'getMaxWordLength')) {
-            $this->maxWordLength = $dictionary->getMaxWordLength();
+            $this->maxWordLength = max(1, $dictionary->getMaxWordLength());
         }
     }
 
@@ -341,7 +314,7 @@ class LongestMatchingStrategy implements AlgorithmInterface
     private function preProcessText(string $text): string
     {
         // Normalize whitespace
-        $text = preg_replace('/\s+/', ' ', $text);
+        $text = preg_replace('/\s+/u', ' ', $text);
 
         // Trim leading/trailing whitespace
         return trim($text);
@@ -377,14 +350,14 @@ class LongestMatchingStrategy implements AlgorithmInterface
     /**
      * Cache a match result to avoid redundant lookups
      */
-    private function cacheMatch(string $key, string $match): void
+    private function cacheMatch(string $key, int $length): void
     {
         if (count($this->matchCache) >= self::MAX_CACHE_SIZE) {
             // Remove oldest half of cache
             $this->matchCache = array_slice($this->matchCache, self::MAX_CACHE_SIZE / 2, null, true);
         }
 
-        $this->matchCache[$key] = $match;
+        $this->matchCache[$key] = $length;
     }
 
     /**
